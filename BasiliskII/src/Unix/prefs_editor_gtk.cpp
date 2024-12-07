@@ -542,6 +542,30 @@ static void cl_selected(GtkWidget *list, int row, int column)
 	selected_volume = row;
 }
 
+// Something dropped on volume list
+static void drag_data_received(GtkWidget *list, GdkDragContext *drag_context, gint x, gint y, GtkSelectionData *data,
+	guint info, guint time, gpointer user_data)
+{
+	// reordering drags have already been handled by clist
+	if (data->type == gdk_atom_intern("gtk-clist-drag-reorder", true)) {
+		return;
+	}
+
+	// get URIs from the drag selection data and add them
+	gchar ** uris = g_strsplit((gchar *)(data->data), "\r\n", -1);
+	for (gchar ** uri = uris; *uri != NULL; uri++) {
+		if (strlen(*uri) < 7) continue;
+		if (strncmp("file://", *uri, 7) != 0) continue;
+
+		gchar * filename = g_filename_from_uri(*uri, NULL, NULL);
+		if (filename) {
+			gtk_clist_append(GTK_CLIST(volume_list), &filename);
+			g_free(filename);
+		}
+	}
+	g_strfreev(uris);
+}
+
 // Volume selected for addition
 static void cb_add_volume_response (GtkWidget *chooser, int response)
 {
@@ -685,6 +709,12 @@ static void create_volumes_pane(GtkWidget *top)
 	gtk_clist_set_shadow_type(GTK_CLIST(volume_list), GTK_SHADOW_NONE);
 	gtk_clist_set_reorderable(GTK_CLIST(volume_list), true);
 	g_signal_connect(volume_list, "select_row", G_CALLBACK(cl_selected), NULL);
+
+	// also support volume files dragged onto the list from outside
+	gtk_drag_dest_add_uri_targets(volume_list);
+	// add a drop handler to get dropped files; don't supersede the drop handler for reordering
+	gtk_signal_connect_after(GTK_OBJECT(volume_list), "drag_data_received", GTK_SIGNAL_FUNC(drag_data_received), NULL);
+
 	char *str;
 	int32 index = 0;
 	while ((str = const_cast<char *>(PrefsFindString("disk", index++))) != NULL)
