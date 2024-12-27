@@ -88,6 +88,9 @@ $ cd macemu/SheepShaver/src/Unix
 $ ./autogen.sh
 $ make
 ```
+For Raspberry Pi:
+https://github.com/vaccinemedia/macemu
+
 ##### MinGW32/MSYS2
 preparation: same as BasiliskII  
   
