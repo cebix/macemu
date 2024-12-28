@@ -1716,6 +1716,10 @@ static void DLPI_unit_data(DLPIStream *the_stream, queue_t *q, mblk_t *mp)
 static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
 static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
 
+void EtherResetCachedAllocation() {
+    ether_packet = 0;
+}
+
 EthernetPacket::EthernetPacket()
 {
 	++n_ether_packets;
@@ -1739,4 +1743,6 @@ EthernetPacket::~EthernetPacket()
 		bug("WARNING: Nested allocation of ethernet packets!\n");
 	}
 }
+#else
+void EtherResetCachedAllocation() { }
 #endif

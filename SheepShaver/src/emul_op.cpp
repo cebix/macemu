@@ -289,6 +289,8 @@ void EmulOp(M68kRegisters *r, uint32 pc, int selector)
 			CDROMRemount(); // for System 7.x
 			TimerReset();
 			MacOSUtilReset();
+			EtherResetCachedAllocation();
+			ether_reset();
 			AudioReset();
 #ifdef USE_SDL_AUDIO
 			PlayStartupSound();

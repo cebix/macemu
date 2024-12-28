@@ -37,6 +37,7 @@ extern int ether_rsrv(queue_t *q);
 extern void EtherInit(void);
 extern void EtherExit(void);
 
+extern void ether_reset(void);
 extern void EtherIRQ(void);
 
 extern void AO_get_ethernet_address(uint32 addr);
@@ -50,6 +51,8 @@ extern void OTLeaveInterrupt(void);
 
 extern void ether_dispatch_packet(uint32 p, uint32 length);
 extern void ether_packet_received(mblk_t *mp);
+
+extern void EtherResetCachedAllocation(void);
 
 extern bool ether_driver_opened;
 
