@@ -59,4 +59,8 @@ SheepShaver runs with varying degree of functionality on the following systems:
  * Easy file exchange with the host OS via a "Host Directory Tree" icon on the Mac desktop
  * Internet and LAN networking via Ethernet
  * Serial drivers
-SCSI Manager (old-style) emulation
+ * SCSI Manager (old-style) emulation
+
+
+# More information
+* [Detailed README for Basilisk II](/BasiliskII/README.md)
