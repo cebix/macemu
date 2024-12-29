@@ -736,7 +736,7 @@ There is no point in sending me questions about
 
 Some [general advice about asking technical support questions](http://www.catb.org/~esr/faqs/smart-questions.html) Keeping this in mind will greatly increase your chances of getting a useful answer.
 
-- The [official Basilisk II home page](http://www.uni-mainz.de/~bauec002/B2Main.html)
+- The [official Basilisk II home page](http://basilisk.cebix.net)
 - The [Basilisk II project page on Github](https://github.com/cebix/macemu)
 - If you have problems, you may want to visit the [Emaculation forums](https://www.emaculation.com/forum/) which are some of the more active forums for Mac emualtion users
 
