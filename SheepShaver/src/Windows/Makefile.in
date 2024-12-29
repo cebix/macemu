@@ -151,7 +151,9 @@ distclean: clean
 	rm -f config.cache config.log config.status config.h
 
 depend dep:
-	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
+	makedepend $(CPPFLAGS)  # Truncate out previous rules
+	# Manually process emitted obj targets to take out extra directory layers
+	makedepend $(CPPFLAGS) -pobj/ -Y. $(SRCS) -f- 2>/dev/null | sed 's#^obj/.*/\(.*\.o\):#obj/\1:#' >> Makefile
 
 $(OBJ_DIR)/%.ho : %.c
 	$(HOST_CC) $(CPPFLAGS) $(DEFS) $(HOST_CFLAGS) -c $< -o $@
