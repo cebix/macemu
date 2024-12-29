@@ -47,6 +47,19 @@ static inline void mach_current_time(tm_time_t &t) {
 	
 	clock_get_time(host_clock, (mach_timespec_t *)&t);
 }
+#else
+tm_time_t host_clock;
+static bool host_clock_inited = false;
+static void host_uptime(tm_time_t & t) {
+	if (!host_clock_inited) {
+		timer_current_time(host_clock);
+		host_clock_inited = true;
+	}
+
+	tm_time_t cur;
+	timer_current_time(cur);
+	timer_sub_time(t, cur, host_clock);
+}
 #endif
 
 
@@ -61,14 +74,14 @@ void Microseconds(uint32 &hi, uint32 &lo)
 	tm_time_t t;
 	mach_current_time(t);
 	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
-#elif defined(HAVE_CLOCK_GETTIME)
-	struct timespec t;
-	clock_gettime(CLOCK_REALTIME, &t);
-	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
 #else
-	struct timeval t;
-	gettimeofday(&t, NULL);
-	uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_usec;
+	tm_time_t t;
+	host_uptime(t);
+	#if defined(HAVE_CLOCK_GETTIME)
+		uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_nsec / 1000;
+	#else
+		uint64 tl = (uint64)t.tv_sec * 1000000 + t.tv_usec;
+	#endif
 #endif
 	hi = tl >> 32;
 	lo = tl;
