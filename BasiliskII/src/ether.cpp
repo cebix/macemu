@@ -186,9 +186,13 @@ void EtherExit(void)
  *  Reset
  */
 
+
+void EtherResetCachedAllocation();
+
 void EtherReset(void)
 {
 	udp_protocols.clear();
+    EtherResetCachedAllocation();
 	ether_reset();
 }
 
@@ -457,6 +461,10 @@ void ether_udp_read(uint32 packet, int length, struct sockaddr_in *from)
 static uint32 ether_packet = 0;			// Ethernet packet (cached allocation)
 static uint32 n_ether_packets = 0;		// Number of ethernet packets allocated so far (should be at most 1)
 
+void EtherResetCachedAllocation() {
+    ether_packet = 0;
+}
+
 EthernetPacket::EthernetPacket()
 {
 	++n_ether_packets;
@@ -485,4 +493,6 @@ EthernetPacket::~EthernetPacket()
 		bug("WARNING: Nested allocation of ethernet packets!\n");
 	}
 }
+#else
+void EtherResetCachedAllocation() { }
 #endif
