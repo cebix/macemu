@@ -188,7 +188,9 @@ distclean: clean
 	rm -f Darwin/lowmem Darwin/pagezero
 
 depend dep:
-	makedepend $(CPPFLAGS) -Y. $(SRCS) 2>/dev/null
+	makedepend $(CPPFLAGS)  # Truncate out previous rules
+	# Manually process emitted obj targets to take out extra directory layers
+	makedepend $(CPPFLAGS) -pobj/ -Y. $(SRCS) -f- 2>/dev/null | sed 's#^obj/.*/\(.*\.o\):#obj/\1:#' >> Makefile
 
 $(OBJ_DIR)/SDLMain.o : SDLMain.m
 	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $< -o $@
