@@ -734,15 +734,18 @@ There is no point in sending me questions about
 
 # Support
 
-- The [official Basilisk II home page](http://www.uni-mainz.de/~bauec002/B2Main.html)
-- The [Basilisk II project page on SourceForge](http://sourceforge.net/projects/basilisk/)
-- If you have problems, you may want to visit the [Basilisk II forums](http://sourceforge.net/forum/?group_id=2123)
-- There is also a [mailing list for Basilisk II users](http://lists.sourceforge.net/lists/listinfo/basilisk-user)
-- And another [mailing list for Basilisk II developer](http://lists.sourceforge.net/lists/listinfo/basilisk-devel)
-- Some [general advice about asking technical support questions](http://www.catb.org/~esr/faqs/smart-questions.html)
+Some [general advice about asking technical support questions](http://www.catb.org/~esr/faqs/smart-questions.html) Keeping this in mind will greatly increase your chances of getting a useful answer.
 
-Keeping this in mind will greatly increase your chances of getting a useful
-answer.
+- The [official Basilisk II home page](http://www.uni-mainz.de/~bauec002/B2Main.html)
+- The [Basilisk II project page on Github](https://github.com/cebix/macemu)
+- If you have problems, you may want to visit the [Emaculation forums](https://www.emaculation.com/forum/) which are some of the more active forums for Mac emualtion users
+
+## Legacy Source Forge links
+
+There is still a small amount of activity on the Source Forge platform
+- [Basilisk II Source Forge forums](http://sourceforge.net/forum/?group_id=2123)
+- [Source Forge mailing list for Basilisk II users](http://lists.sourceforge.net/lists/listinfo/basilisk-user)
+- [Source Forge mailing list for Basilisk II developer](http://lists.sourceforge.net/lists/listinfo/basilisk-devel)
 
 # History
 Please consult the file "ChangeLog" for the release history.
