@@ -739,6 +739,29 @@ static void cb_add_volume_response (GtkFileChooser *chooser, int response)
 	file_chooser_destroy(chooser);
 }
 
+// Something dropped on volume list
+static void cb_volume_drag_data_received(GtkWidget *view, GdkDragContext *drag_context, gint x, gint y, GtkSelectionData *data,
+	guint info, guint time, gpointer user_data)
+{
+	if (gtk_selection_data_get_data_type(data) == gdk_atom_intern_static_string("text/uri-list")) {
+		// get URIs from the drag selection data and add them
+		gchar ** uris = gtk_selection_data_get_uris(data);
+		for (gchar ** uri = uris; *uri != NULL; uri++) {
+
+			GFile *volume = g_file_new_for_uri(*uri);
+			gtk_list_store_append (GTK_LIST_STORE(volume_store), &toplevel);
+			gtk_list_store_set (GTK_LIST_STORE(volume_store), &toplevel,
+			        COLUMN_PATH, g_file_get_path(volume),
+			        COLUMN_SIZE, get_file_size(volume),
+			        COLUMN_CDROM, has_file_ext(volume, ".iso"),
+			        -1);
+			g_object_unref(volume);
+
+		}
+		g_strfreev(uris);
+	}
+}
+
 // "Add Volume" button clicked
 static void cb_add_volume (GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
@@ -997,6 +1020,10 @@ static GtkWidget *create_tree_view (void)
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(view));
 	gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
 	g_signal_connect(selection, "changed", G_CALLBACK(cb_remove_enable), NULL);
+
+	// also support volume files dragged onto the list from outside
+	gtk_drag_dest_add_uri_targets(view);
+	g_signal_connect(view, "drag_data_received", G_CALLBACK(cb_volume_drag_data_received), NULL);
 
 	return view;
 }
