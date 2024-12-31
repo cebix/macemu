@@ -35,6 +35,8 @@
 #define DEBUG 0
 #include "debug.h"
 
+#define MONITOR_STREAM 0
+
 #if defined(BINCUE)
 #include "bincue.h"
 #endif
@@ -75,6 +77,8 @@ static void set_audio_status_format(void)
 	AudioStatus.channels = audio_channel_counts[audio_channel_count_index];
 }
 
+static SDL_AudioStream * main_open_sdl_stream = NULL;
+
 // Init SDL audio system
 static bool open_sdl_audio(void)
 {
@@ -99,12 +103,18 @@ static bool open_sdl_audio(void)
 	audio_spec.channels = audio_channel_counts[audio_channel_count_index];
 	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
 
+	D(bug("Opening SDL audio device stream, freq %d chan %d format %s\n", audio_spec.freq, audio_spec.channels,
+		SDL_GetAudioFormatName(audio_spec.format)));
+
+	assert(!main_open_sdl_stream);
+
 	// Open the audio device, forcing the desired format
 	SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, stream_func, NULL);
 	if (stream == NULL) {
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
 	}
+	main_open_sdl_stream = stream;
 	silence_byte = SDL_GetSilenceValueForFormat(audio_spec.format);
 #if defined(BINCUE)
 	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels, silence_byte, get_audio_volume());
@@ -114,6 +124,15 @@ static bool open_sdl_audio(void)
 	audio_frames_per_block = 4096 >> PrefsFindInt32("sound_buffer");
 	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
 	return true;
+}
+
+static bool close_sdl_audio() {
+	if (main_open_sdl_stream) {
+		SDL_DestroyAudioStream(main_open_sdl_stream);
+		main_open_sdl_stream = NULL;
+		return true;
+	}
+	return false;
 }
 
 static bool open_audio(void)
@@ -165,7 +184,7 @@ static void close_audio(void)
 		SDL_Delay(10);
 	exit_startup = false;
 	// Close audio device
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+	close_sdl_audio();
 	audio_open = false;
 }
 
@@ -202,11 +221,45 @@ void audio_exit_stream()
  *  Streaming function
  */
 
-static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len, int /*total_amount*/)
+static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len, int total_amount)
 {
 	static std::queue<uint8> q;
+
+	int target_queue_size;
+
+	if (stream_len == 0) {
+		// This indicates that SDL3 really has all the data it wants right now.
+		// This is our backpressure state, where we avoid pushing even more
+		// which prevents non-real-time audio situations (like playing media with audio)
+		// from getting unnecessarily ahead
+		target_queue_size = 0;
+	} else {
+		// We want to supply a little more data than was requested to prevent underruns
+		// Figure out a fraction of a second of data to use
+		int margin_numerator = 3;
+		int margin_denominator = 100;
+
+		// sample size across all channels
+		int sample_size = AudioStatus.channels * (AudioStatus.sample_size >> 3); // bytes
+		// Take care with data types
+		// - AudioStatus.sample_rate Hz is in 16.16 fixed point and will overflow if we multiply its uint32 by even 2
+		int margin_samples = ((int)(((uint64)AudioStatus.sample_rate * margin_numerator) >> 16) / margin_denominator);
+		// - We want a number of bytes that is an integer multiple of a sample for each channel
+		int margin = margin_samples * sample_size;
+
+		target_queue_size = stream_len + margin;
+
+#if MONITOR_STREAM
+#define DISPLAY_EVERY 4
+		static int monitor_stream_count = 0;
+		if (monitor_stream_count++ % DISPLAY_EVERY == 0)
+			bug("stream_len %5d already sent %5d mn %d md %d margin %5d target_q %5d q %6ld\n",
+				stream_len, total_amount, margin_numerator, margin_denominator, margin, target_queue_size, q.size());
+#endif
+	}
+
 	if (AudioStatus.num_sources) {
-		while (q.size() < stream_len) {
+		while (q.size() < target_queue_size) {
 			// Trigger audio interrupt to get new buffer
 			D(bug("stream: triggering irq\n"));
 			SetInterruptFlag(INTFLAG_AUDIO);
@@ -217,10 +270,16 @@ static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len,
 			
 			// Get size of audio data
 			uint32 apple_stream_info = ReadMacInt32(audio_data + adatStreamInfo);
-			if (apple_stream_info && !main_mute && !speaker_mute) {
+			if (apple_stream_info) {
 				int work_size = ReadMacInt32(apple_stream_info + scd_sampleCount) * (AudioStatus.sample_size >> 3) * AudioStatus.channels;
+				if (work_size == 0)
+					break;
 				uint8 buf[work_size];
-				Mac2Host_memcpy(buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
+				if (!main_mute && !speaker_mute) {
+					Mac2Host_memcpy(buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
+				} else {
+					memset(buf, silence_byte, work_size);
+				}
 				for (int i = 0; i < work_size; i++) q.push(buf[i]);
 			}
 			else {
@@ -229,13 +288,22 @@ static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len,
 			}
 		}
 	}
+	int bytes_available = int(q.size());
+	if (bytes_available > stream_len) {
+		// push any extra bytes, up to the target number, right away
+		stream_len = std::min(bytes_available, target_queue_size);
+	}
+
 	uint8 src[stream_len], dst[stream_len];
-	for (int i = 0; i < stream_len; i++)
-		if (q.empty()) src[i] = silence_byte;
+	int i;
+	for (i = 0; i < stream_len; i++)
+		if (q.empty()) break;
 		else {
 			src[i] = q.front();
 			q.pop();
 		}
+	if (i < stream_len)
+		memset(src + i, silence_byte, stream_len - i);
 	memset(dst, silence_byte, stream_len);
 	//SDL_AudioSpec audio_spec;
 	//int r = SDL_GetAudioStreamFormat(stream, NULL, &audio_spec);// little endianが帰ってくる
@@ -361,7 +429,7 @@ static int play_startup(void *arg) {
 	SDL_AudioSpec wav_spec;
 	Uint8 *wav_buffer;
 	Uint32 wav_length;
-	if (!playing_startup && !SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
+	if (!playing_startup && SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
 		SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &wav_spec, NULL, NULL);
 		if (stream) {
 			SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
