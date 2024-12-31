@@ -77,6 +77,8 @@ static void set_audio_status_format(void)
 	AudioStatus.channels = audio_channel_counts[audio_channel_count_index];
 }
 
+static SDL_AudioStream * main_open_sdl_stream = NULL;
+
 // Init SDL audio system
 static bool open_sdl_audio(void)
 {
@@ -101,12 +103,18 @@ static bool open_sdl_audio(void)
 	audio_spec.channels = audio_channel_counts[audio_channel_count_index];
 	audio_spec.freq = audio_sample_rates[audio_sample_rate_index] >> 16;
 
+	D(bug("Opening SDL audio device stream, freq %d chan %d format %s\n", audio_spec.freq, audio_spec.channels,
+		SDL_GetAudioFormatName(audio_spec.format)));
+
+	assert(!main_open_sdl_stream);
+
 	// Open the audio device, forcing the desired format
 	SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, stream_func, NULL);
 	if (stream == NULL) {
 		fprintf(stderr, "WARNING: Cannot open audio: %s\n", SDL_GetError());
 		return false;
 	}
+	main_open_sdl_stream = stream;
 	silence_byte = SDL_GetSilenceValueForFormat(audio_spec.format);
 #if defined(BINCUE)
 	OpenAudio_bincue(audio_spec.freq, audio_spec.format, audio_spec.channels, silence_byte, get_audio_volume());
@@ -116,6 +124,15 @@ static bool open_sdl_audio(void)
 	audio_frames_per_block = 4096 >> PrefsFindInt32("sound_buffer");
 	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
 	return true;
+}
+
+static bool close_sdl_audio() {
+	if (main_open_sdl_stream) {
+		SDL_DestroyAudioStream(main_open_sdl_stream);
+		main_open_sdl_stream = NULL;
+		return true;
+	}
+	return false;
 }
 
 static bool open_audio(void)
@@ -167,7 +184,7 @@ static void close_audio(void)
 		SDL_Delay(10);
 	exit_startup = false;
 	// Close audio device
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+	close_sdl_audio();
 	audio_open = false;
 }
 
