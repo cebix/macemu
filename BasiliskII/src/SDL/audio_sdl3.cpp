@@ -429,7 +429,7 @@ static int play_startup(void *arg) {
 	SDL_AudioSpec wav_spec;
 	Uint8 *wav_buffer;
 	Uint32 wav_length;
-	if (!playing_startup && !SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
+	if (!playing_startup && SDL_LoadWAV("startup.wav", &wav_spec, &wav_buffer, &wav_length)) {
 		SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &wav_spec, NULL, NULL);
 		if (stream) {
 			SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(stream));
