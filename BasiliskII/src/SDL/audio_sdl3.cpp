@@ -62,7 +62,7 @@ SDL_AudioSpec audio_spec;
 
 // Prototypes
 static void SDLCALL stream_func(void *arg, SDL_AudioStream *stream, int additional_amount, int total_amount);
-static int get_audio_volume();
+static float get_audio_volume();
 
 
 /*
@@ -421,8 +421,8 @@ void audio_set_speaker_volume(uint32 vol)
 		speaker_volume = MAC_MAX_VOLUME;
 }
 
-static int get_audio_volume() {
-	return main_volume * speaker_volume / (MAC_MAX_VOLUME * MAC_MAX_VOLUME);
+static float get_audio_volume() {
+	return (float) main_volume * speaker_volume / (MAC_MAX_VOLUME * MAC_MAX_VOLUME);
 }
 
 static int play_startup(void *arg) {
