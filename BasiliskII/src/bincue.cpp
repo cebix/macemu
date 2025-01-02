@@ -111,6 +111,7 @@ typedef struct {
 	int raw_sector_size;	// Raw bytes to read per sector
 	int cooked_sector_size; // Actual data bytes per sector (depends on Mode)
 	int header_size;		// Number of bytes used in header
+	int big_endian_audio;   // Expect raw audio samples in big-endian format
 } CueSheet;
 
 typedef struct CDPlayer {
@@ -268,6 +269,7 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 	cs->raw_sector_size = 2352;
 	cs->cooked_sector_size = 2352;
 	cs->header_size = 0;
+	cs->big_endian_audio = false;
 
 	while (fgets(line, MAXLINE, fh) != NULL) {
 		Track *curr = &cs->tracks[cs->tcnt];
@@ -292,11 +294,13 @@ static bool ParseCueSheet(FILE *fh, CueSheet *cs, const char *cuefile)
 				}	
 				filename = strtok(NULL, "\"\t\n\r");
 				filetype = strtok(NULL, " \"\t\n\r");
-				if (strcmp("BINARY", filetype)) {
+				if (strcmp("BINARY", filetype) && strcmp("MOTOROLA", filetype)) {
 					D(bug("Not binary file %s", filetype));
 					goto fail;
 				}
 				else {
+					if (!strcmp("MOTOROLA", filetype))
+						cs->big_endian_audio = true;
 					char *tmp = strdup(cuefile);
 					char *b = dirname(tmp);
 					cs->binfile = (char *) malloc(strlen(b) + strlen(filename) + 2);
