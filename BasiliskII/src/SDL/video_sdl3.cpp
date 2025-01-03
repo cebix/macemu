@@ -2270,6 +2270,11 @@ static bool SDLCALL on_sdl_event_generated(void *userdata, SDL_Event *event)
 				} break;
 			}
 		} break;
+
+		case SDL_EVENT_DROP_FILE:
+			CDROMDrop(event->drop.data);
+			return EVENT_DROP_FROM_QUEUE;
+			break;
 	}
 	
 	return EVENT_ADD_TO_QUEUE;
@@ -2405,10 +2410,6 @@ static void handle_events(void)
 			case SDL_EVENT_WINDOW_RESTORED:
 				// Force a complete window refresh when activating, to avoid redraw artifacts otherwise.
 				force_complete_window_refresh();
-				break;
-
-			case SDL_EVENT_DROP_FILE:
-				CDROMDrop(event.drop.data);
 				break;
 
 			// Window "close" widget clicked

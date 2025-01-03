@@ -2289,6 +2289,12 @@ static int SDLCALL on_sdl_event_generated(void *userdata, SDL_Event * event)
 			}
 		} break;
 			
+		case SDL_DROPFILE:
+			CDROMDrop(event->drop.file);
+			SDL_free(event->drop.file);
+			return EVENT_DROP_FROM_QUEUE;
+			break;
+
 		case SDL_WINDOWEVENT: {
 			switch (event->window.event) {
 				case SDL_WINDOWEVENT_RESIZED: {
@@ -2444,15 +2450,9 @@ static void handle_events(void)
 					case SDL_WINDOWEVENT_RESTORED:
 						force_complete_window_refresh();
 						break;
-					
 				}
 				break;
 			}
-
-			case SDL_DROPFILE:
-				CDROMDrop(event.drop.file);
-				SDL_free(event.drop.file);
-				break;
 
 			// Window "close" widget clicked
 			case SDL_QUIT:
