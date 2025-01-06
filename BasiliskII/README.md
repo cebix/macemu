@@ -1,7 +1,7 @@
 # Basilisk II
 A 68k Macintosh emulator
 
-Copyright (C) 1997-2008 Christian Bauer et al.
+Copyright (C) Christian Bauer et al.
 
 # License
 
@@ -688,20 +688,20 @@ Please see the included file "TECH" for a technical overview of the emulator.
 # Acknowledgements
 
 Contributions by (in alphabetical order):
-- [Orlando Bassotto](future@powercube.mediabit.net): FreeBSD support
-- [Gwenol� Beauchesne](gb@dial.oleane.com): SPARC assembly optimizations, lots of work on the Unix video code, fixes and improvements to the JIT compiler
-- [Marc Chabanas](Marc.Chabanas@france.sun.com): Solaris sound support
-- [Marc Hellwig](Marc.Hellwig@uni-mainz.de): audio output, BeOS video code and networking
-- [Bill Huey](billh@mag.ucsd.edu): 15/16 bit DGA and 15/16/32 bit X11 window support
-- [Brian J. Johnson](bjohnson@sgi.com): IRIX support
-- [J�rgen Lachmann](juergen_lachmann@t-online.de): AmigaOS CyberGraphX support
-- [Samuel Lander](blair_sp@hotmail.com): tile-based window refresh code
-- [David Lawrence](davidl@jlab.org): incremental window refresh code
-- [Bernie Meyer](bmeyer@csse.monash.edu.au): original UAE-JIT code
-- [Nigel Pearson](nigel@ind.tansu.com.au): Mac OS X port
-- [Lauri Pesonen](lpesonen@nic.fi): Windows NT port
-- [Bernd Schmidt](crux@pool.informatik.rwth-aachen.de): UAE 68k emulation
-- [Michael Z. Sliczniak](msliczniak@comcast.net): Mach memory fault recovery
+- Orlando Bassotto: FreeBSD support
+- Gwenolé Beauchesne: SPARC assembly optimizations, lots of work on the Unix video code, fixes and improvements to the JIT compiler
+- Marc Chabanas: Solaris sound support
+- Marc Hellwig: audio output, BeOS video code and networking
+- Bill Huey: 15/16 bit DGA and 15/16/32 bit X11 window support
+- Brian J. Johnson: IRIX support
+- Jürgen Lachmann: AmigaOS CyberGraphX support
+- Samuel Lander: tile-based window refresh code
+- David Lawrence: incremental window refresh code
+- Bernie Meyer: original UAE-JIT code
+- Nigel Pearson: Mac OS X port
+- Lauri Pesonen: Windows NT port
+- Bernd Schmidt: UAE 68k emulation
+- Michael Z. Sliczniak: Mach memory fault recovery
 - and others...
 
 Special thanks to:
@@ -712,15 +712,15 @@ Special thanks to:
 
 # Bug reports
 
-You found a bug? Well, use the source, fix it and send the fix to <Christian.Bauer@uni-mainz.de> for inclusion in the next release of Basilisk II.
+You found a bug? Well, use the source, fix it and post a pull request to [GitHub](https://github.com/cebix/macemu) for inclusion in the next release of Basilisk II.
 
-If you don't have a fix, you should post a bug report using the Source Forge bug tracker, supplying as much information as possible (operating system and versions of Basilisk II and MacOS being used, relevant hardware information, the exact steps to reproduce the bug, etc.): http://sourceforge.net/tracker/?group_id=2123&atid=102123
+If you don't have a fix, you should post a bug report using the Source Forge bug tracker, supplying as much information as possible (operating system and versions of Basilisk II and MacOS being used, relevant hardware information, the exact steps to reproduce the bug, etc.): https://sourceforge.net/p/basilisk/bugs/
 
-I also strongly suggest reading this before posting a bug report: http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
+I also strongly suggest reading this before posting a bug report: https://www.chiark.greenend.org.uk/~sgtatham/bugs.html
 
 # Author
 
-You can contact me at <Christian.Bauer@uni-mainz.de>, but please don't do so unless absolutely necessary. I'm maintaining Basilisk II in my spare time and am not able to provide technical support for everyone. If you have questions, consider posting them to one of the support forums mentioned below.
+You can contact me via one of the methods listed on [my GitHub page](https://github.com/cebix), but please don't do so unless absolutely necessary. I'm maintaining Basilisk II in my spare time and am not able to provide technical support for everyone. If you have questions, consider posting them to one of the support forums mentioned below.
 
 You are encouraged to contact me personally when
 - you have bug fixes or small enhancements for the code
@@ -736,18 +736,18 @@ There is no point in sending me questions about
 
 Some [general advice about asking technical support questions](http://www.catb.org/~esr/faqs/smart-questions.html) Keeping this in mind will greatly increase your chances of getting a useful answer.
 
-- The [official Basilisk II home page](http://basilisk.cebix.net)
-- The [Basilisk II project page on Github](https://github.com/cebix/macemu)
+- The [official Basilisk II home page](https://basilisk.cebix.net)
+- The [Basilisk II project page on GitHub](https://github.com/cebix/macemu)
 - If you have problems, you may want to visit the [Emaculation forums](https://www.emaculation.com/forum/) which are some of the more active forums for Mac emualtion users
 
 ## Legacy Source Forge links
 
 There is still a small amount of activity on the Source Forge platform
-- [Basilisk II Source Forge forums](http://sourceforge.net/forum/?group_id=2123)
-- [Source Forge mailing list for Basilisk II users](http://lists.sourceforge.net/lists/listinfo/basilisk-user)
-- [Source Forge mailing list for Basilisk II developer](http://lists.sourceforge.net/lists/listinfo/basilisk-devel)
+- [Basilisk II Source Forge forums](https://sourceforge.net/p/basilisk/discussion/)
+- [Source Forge mailing list for Basilisk II users](https://sourceforge.net/projects/basilisk/lists/basilisk-user)
+- [Source Forge mailing list for Basilisk II developers](https://sourceforge.net/projects/basilisk/lists/basilisk-devel)
 
 # History
 Please consult the file "ChangeLog" for the release history.
 
-[Christian Bauer](Christian.Bauer@uni-mainz.de)
+[Christian Bauer](https://www.cebix.net)
