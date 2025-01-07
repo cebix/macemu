@@ -276,7 +276,14 @@ static void SDLCALL stream_func(void *, SDL_AudioStream *stream, int stream_len,
 					break;
 				uint8 buf[work_size];
 				if (!main_mute && !speaker_mute) {
-					Mac2Host_memcpy(buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
+					bool dbl = AudioStatus.channels == 2 &&
+						ReadMacInt16(apple_stream_info + scd_numChannels) == 1 &&
+						ReadMacInt16(apple_stream_info + scd_sampleSize) == 8;
+					uint8 *src = Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer));
+					if (dbl)
+						for (int i = 0; i < work_size; i += 2)
+							buf[i] = buf[i + 1] = src[i >> 1];
+					else memcpy(buf, src, work_size);
 				} else {
 					memset(buf, silence_byte, work_size);
 				}

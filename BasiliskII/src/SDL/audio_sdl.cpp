@@ -243,7 +243,14 @@ static void stream_func(void *arg, uint8 *stream, int stream_len)
 				goto silence;
 
 			// Send data to audio device
-			Mac2Host_memcpy(audio_mix_buf, ReadMacInt32(apple_stream_info + scd_buffer), work_size);
+			bool dbl = AudioStatus.channels == 2 &&
+				ReadMacInt16(apple_stream_info + scd_numChannels) == 1 &&
+				ReadMacInt16(apple_stream_info + scd_sampleSize) == 8;
+			uint8 *src = Mac2HostAddr(ReadMacInt32(apple_stream_info + scd_buffer));
+			if (dbl)
+				for (int i = 0; i < work_size; i += 2)
+					audio_mix_buf[i] = audio_mix_buf[i + 1] = src[i >> 1];
+			else memcpy(audio_mix_buf, src, work_size);
 			memset((uint8 *)stream, silence_byte, stream_len);
 			SDL_MixAudio(stream, audio_mix_buf, work_size, get_audio_volume());
 
