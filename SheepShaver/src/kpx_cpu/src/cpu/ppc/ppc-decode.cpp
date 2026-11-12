@@ -900,6 +900,11 @@ const powerpc_cpu::instr_info_t powerpc_cpu::powerpc_ii_table[] = {
 	  PPC_I(STFDX),
 	  X_form, 31, 727, CFLOW_NORMAL
 	},
+	{ "stfiwx",
+	  EXECUTE_0(stfiwx),
+	  PPC_I(STFIWX),
+	  X_form, 31, 983, CFLOW_NORMAL
+	},
 	{ "stfs",
 	  EXECUTE_FP_LOADSTORE(RA_or_0, D, false, false, false),
 	  PPC_I(STFS),
