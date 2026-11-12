@@ -505,6 +505,8 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 					rate = 4800; baud_rate = CBR_4800;
 				} else if (rate <= 9600) {
 					rate = 9600; baud_rate = CBR_9600;
+				} else if (rate <= 14400) {
+					rate = 14400; baud_rate = CBR_14400;
 				} else if (rate <= 19200) {
 					rate = 19200; baud_rate = CBR_19200;
 				} else if (rate <= 38400) {
@@ -593,7 +595,7 @@ int16 XSERDPort::control(uint32 pb, uint32 dce, uint16 code)
 		case kSERD230KBaud:
 		case kSERDSetHighSpeed:
 			if (is_serial) {
-				mode.BaudRate = CBR_256000;
+				mode.BaudRate = 230400;
 				if(!SetCommState( fd, &mode )) return controlErr;
 			}
 			return noErr;
@@ -796,7 +798,7 @@ bool XSERDPort::configure(uint16 config)
 
 	// Set baud rate
 	switch (config & 0x03ff) {
-		// no baud1800, CBR_14400, CBR_56000, CBR_115200, CBR_128000, CBR_256000
+		// no baud1800, CBR_14400, CBR_56000, CBR_115200, CBR_128000, 230400; CBR_256000
 		case baud150: mode.BaudRate = CBR_110; bauds = 110; break;
 		case baud300: mode.BaudRate = CBR_300; bauds = 300; break;
 		case baud600: mode.BaudRate = CBR_600; bauds = 600; break;
@@ -805,6 +807,7 @@ bool XSERDPort::configure(uint16 config)
 		case baud2400: mode.BaudRate = CBR_2400; bauds = 2400; break;
 		case baud4800: mode.BaudRate = CBR_4800; bauds = 4800; break;
 		case baud9600: mode.BaudRate = CBR_9600; bauds = 9600; break;
+		case baud14400: mode.BaudRate = CBR_14400; bauds = 14400; break;
 		case baud19200: mode.BaudRate = CBR_19200; bauds = 19200; break;
 		case baud38400: mode.BaudRate = CBR_38400; bauds = 38400; break;
 		case baud57600: mode.BaudRate = CBR_57600; bauds = 57600; break;
@@ -1196,3 +1199,4 @@ unsigned int XSERDPort::output_func(void *arg)
 
 	return(0);
 }
+
