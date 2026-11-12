@@ -445,6 +445,7 @@ private:
 	void execute_fp_compare(uint32 opcode);
  	template< class RA, class RB, bool LD, bool DB, bool UP >
 	void execute_fp_loadstore(uint32 opcode);
+	void execute_stfiwx(uint32 opcode);
 	template< class RN, class Rc >
 	void execute_fp_int_convert(uint32 opcode);
 	template< class Rc >

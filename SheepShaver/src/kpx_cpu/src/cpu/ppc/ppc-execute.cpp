@@ -650,6 +650,13 @@ void powerpc_cpu::execute_fp_loadstore(uint32 opcode)
 	increment_pc(4);
 }
 
+void powerpc_cpu::execute_stfiwx(uint32 opcode)
+{
+	const uint32 ea = operand_RA_or_0::get(this, opcode) + operand_RB::get(this, opcode);
+	vm_write_memory_4(ea, (uint32)operand_fp_dw_RS::get(this, opcode));
+	increment_pc(4);
+}
+
 /**
  *	Load/Store String Word instruction
  *

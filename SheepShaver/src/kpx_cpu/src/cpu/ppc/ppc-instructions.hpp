@@ -185,6 +185,7 @@ enum powerpc_instruction {
 	PPC_I(STFDU),
 	PPC_I(STFDUX),
 	PPC_I(STFDX),
+	PPC_I(STFIWX),
 	PPC_I(STFS),
 	PPC_I(STFSU),
 	PPC_I(STFSUX),
