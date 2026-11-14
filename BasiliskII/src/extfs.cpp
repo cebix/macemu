@@ -471,6 +471,8 @@ static void get_path_for_fsitem_buf(FSItem *p, char *buf)
 	} else if (p->name != NULL) {
 		get_path_for_fsitem_buf(p->parent, buf);
 		add_path_component(buf, p->name);
+	} else {
+		buf[0] = 0;
 	}
 }
 
@@ -2563,6 +2565,23 @@ static int16 fs_delete(uint32 pb, uint32 dirID)
 	if (fs_item->id <= ROOT_ID)
 		return fBsyErr;
 
+	struct stat st;
+	if (stat(full_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+		// Reject non-empty directories (also guards platforms like Windows where remove() recurses)
+		DIR *d = opendir(full_path);
+		if (d != NULL) {
+			struct dirent *de;
+			while ((de = readdir(d)) != NULL) {
+				if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0 &&
+				    strcmp(de->d_name, ".finf") != 0 && strcmp(de->d_name, ".rsrc") != 0) {
+					closedir(d);
+					return fBsyErr;
+				}
+			}
+			closedir(d);
+		}
+	}
+
 	if (!extfs_remove(full_path))
 		return errno2oserr();
 
@@ -2838,7 +2857,8 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_open(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);
 
 		case kFSMOpenDF:
-			// _HFSDispatch 0x001A (PBOpenDFSync/FSpOpenDF) always passes HParmBlkPtr without kHFSMask
+			// Mac OS 9's FSM invokes kFSMOpenDF without kHFSMask even for FSpOpenDF/PBHOpenDFSync;
+			// gating on hfs breaks FSpOpenDF on Mac OS 9.
 			return fs_open(paramBlock, ReadMacInt32(paramBlock + ioDirID), vcb, false);
 
 		case kFSMClose:
