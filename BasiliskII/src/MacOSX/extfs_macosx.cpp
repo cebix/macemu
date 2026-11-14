@@ -252,8 +252,9 @@ static int open_rsrc(const char *path, int flag)
 	make_rsrc_path(path, rsrc_path);
 
 	int fd = open(rsrc_path, flag);
-	if (fd < 0 && flag == O_WRONLY)
-		fd = open(rsrc_path, O_WRONLY | O_CREAT); // for APFS
+	int accmode = flag & O_ACCMODE;
+	if (fd < 0 && (accmode == O_WRONLY || accmode == O_RDWR))
+		fd = open(rsrc_path, flag | O_CREAT, 0666); // for APFS
 	return fd;
 }
 
@@ -335,7 +336,7 @@ static bool get_finfo_from_xattr(const char *path, uint8 *finfo, uint8 *fxinfo)
 	if (!get_xattr(path, XATTR_FINFO, finfo, SIZEOF_FInfo))
 		return false;
 	if (fxinfo && !get_xattr(path, XATTR_FXINFO, fxinfo, SIZEOF_FXInfo))
-		return false;
+		memset(fxinfo, 0, SIZEOF_FXInfo);
 	return true;
 }
 
@@ -498,7 +499,7 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 		set_finfo_to_helper(path, emu_finfo, emu_fxinfo);
 
 	// Update native Finder info flags
-	set_finfo_to_native(path, nat_finfo, nat_fxinfo, is_dir);
+	set_finfo_to_native(path, nat_finfo, fxinfo ? nat_fxinfo : NULL, is_dir);
 }
 
 
