@@ -267,7 +267,9 @@ uint32 get_rfork_size(const char *path)
 
 	// Close file and return size
 	close(fd);
-	return info.size;
+	if (info.size < 0)
+		return 0;
+	return info.size > (off_t)0x7fffffffU ? 0x7fffffffU : (uint32)info.size;
 }
 
 int open_rfork(const char *path, int flag)

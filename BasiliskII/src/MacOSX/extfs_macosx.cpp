@@ -231,7 +231,8 @@ static int open_rsrc(const char *path, int flag)
 	make_rsrc_path(path, rsrc_path);
 
 	int fd = open(rsrc_path, flag);
-	if (fd < 0 && (flag == O_WRONLY || flag == O_RDWR))
+	int accmode = flag & O_ACCMODE;
+	if (fd < 0 && (accmode == O_WRONLY || accmode == O_RDWR))
 		fd = open(rsrc_path, flag | O_CREAT, 0666); // for APFS
 	return fd;
 }

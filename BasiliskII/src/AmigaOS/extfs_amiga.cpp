@@ -92,8 +92,11 @@ static void make_helper_path(const char *src, char *dest, const char *add, bool 
 	const char *last_part = FilePart((char *)src);
 
 	// Copy everything before
-	strncpy(dest, src, last_part-src);
-	dest[last_part-src] = 0;
+	size_t prefix_len = last_part - src;
+	if (prefix_len >= MAX_PATH_LENGTH)
+		prefix_len = MAX_PATH_LENGTH - 1;
+	strncpy(dest, src, prefix_len);
+	dest[prefix_len] = 0;
 
 	// Add additional component
 	AddPart(dest, (char *)add, MAX_PATH_LENGTH);
@@ -293,7 +296,9 @@ uint32 get_rfork_size(const char *path)
 	
 	// Close file and return size
 	close(fd);
-	return size < 0 ? 0 : size;
+	if (size < 0)
+		return 0;
+	return size > (off_t)0x7fffffffU ? 0x7fffffffU : (uint32)size;
 }
 
 int open_rfork(const char *path, int flag)

@@ -344,6 +344,8 @@ static void retire_fsitem(FSItem *p)
 		p->parent->cache_dircount = -1;
 	}
 	hash_remove_fsitem(p);
+	delete[] p->name;
+	p->name = NULL;
 	p->retired = true;
 }
 
@@ -466,7 +468,7 @@ static void get_path_for_fsitem_buf(FSItem *p, char *buf)
 	} else if (p->id == ROOT_ID) {
 		strncpy(buf, RootPath, MAX_PATH_LENGTH - 1);
 		buf[MAX_PATH_LENGTH - 1] = 0;
-	} else {
+	} else if (p->name != NULL) {
 		get_path_for_fsitem_buf(p->parent, buf);
 		add_path_component(buf, p->name);
 	}
@@ -533,33 +535,18 @@ static FSItem *resolve_child_by_guest_name(FSItem *parent, const char *guest_nam
 	if (d == NULL)
 		return NULL;
 
-	bool may_need_disambig = (strlen(guest_name) >= 31 || strchr(guest_name, '#') != NULL);
+	// Populate all visible children on slow-path lookup so #N disambiguation is invariant to lookup order
+	FSItem *match = NULL;
 	struct dirent *de;
 	while ((de = readdir(d)) != NULL) {
 		if (!is_visible_dirent(dir_path, de, NULL))
 			continue;
-		if (may_need_disambig) {
-			FSItem *child = find_fsitem(de->d_name, parent);
-			if (macroman_iequals(child->guest_name, guest_name)) {
-				closedir(d);
-				return child;
-			}
-		} else {
-			const char *mr = host_encoding_to_macroman(de->d_name);
-			char conv[32];
-			strncpy(conv, mr ? mr : de->d_name, 31);
-			conv[31] = 0;
-			if (macroman_iequals(conv, guest_name)) {
-				FSItem *child = find_fsitem(de->d_name, parent);
-				if (macroman_iequals(child->guest_name, guest_name)) {
-					closedir(d);
-					return child;
-				}
-			}
-		}
+		FSItem *child = find_fsitem(de->d_name, parent);
+		if (match == NULL && macroman_iequals(child->guest_name, guest_name))
+			match = child;
 	}
 	closedir(d);
-	return NULL;
+	return match;
 }
 
 static void calc_fork_sizes(off_t raw_size, uint32 &logical_out, uint32 &physical_out)
@@ -1215,7 +1202,7 @@ static bool convert_guest_leaf_to_host(const char *guest_leaf, char *out_host, s
 	size_t len = strlen(src);
 	if (len == 0 || len >= out_size)
 		return false;
-	if (!strcmp(src, ".") || !strcmp(src, "..") || strchr(src, '/') != NULL)
+	if (src[0] == '.' || strchr(src, '/') != NULL)
 		return false;
 #ifdef WIN32
 	if (strpbrk(src, "\\:*?\"<>|") != NULL)
@@ -2266,6 +2253,8 @@ static int16 fs_set_eof(uint32 pb)
 		return rfNumErr;
 	if (ReadMacInt32(fcb + fcbFlNm) == 0)
 		return fnOpnErr;
+	if (!(ReadMacInt8(fcb + fcbFlags) & fcbWriteMask))
+		return wrPermErr;
 	int fd = (int32)ReadMacInt32(fcb + fcbCatPos);
 	if (fd < 0) {
 		if (ReadMacInt8(fcb + fcbFlags) & fcbResourceMask)	// "pseudo" resource fork
@@ -2385,6 +2374,10 @@ static int16 prepare_fcb_io(uint32 pb, bool is_write, uint32 &out_fcb, int &out_
 	if (ReadMacInt32(fcb + fcbFlNm) == 0) {
 		WriteMacInt32(pb + ioActCount, 0);
 		return fnOpnErr;
+	}
+	if (is_write && !(ReadMacInt8(fcb + fcbFlags) & fcbWriteMask)) {
+		WriteMacInt32(pb + ioActCount, 0);
+		return wrPermErr;
 	}
 	int fd = (int32)ReadMacInt32(fcb + fcbCatPos);
 	if (fd < 0) {
@@ -2607,6 +2600,8 @@ static int16 fs_rename(uint32 pb, uint32 dirID)
 
 	// Resolve new name relative to the existing item's parent directory
 	Mac2Mac_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
+	if (ReadMacInt16(pb + ioVRefNum) == 0 && src.vcb != 0)
+		WriteMacInt16(fs_data + fsPB + ioVRefNum, ReadMacInt16(src.vcb + vcbVRefNum));
 	WriteMacInt32(fs_data + fsPB + ioNamePtr, new_name_ptr);
 	ResolvedPath dst;
 	result = resolve_path_spec(fs_data + fsPB, fs_item->parent_id, false, dst);
@@ -2664,19 +2659,21 @@ static int16 fs_cat_move(uint32 pb)
 	D(bug(" fs_cat_move(%08x), vRefNum %d, dirID %u, new dirID %u\n", pb, (int16)ReadMacInt16(pb + ioVRefNum), ReadMacInt32(pb + ioDirID), ReadMacInt32(pb + ioNewDirID)));
 
 	// Find source item
-	FSItem *fs_item;
-	int16 result = get_item_and_path(pb, ReadMacInt32(pb + ioDirID), fs_item);
-	if (result != noErr)
+	ResolvedPath src;
+	int16 result = resolve_path_spec(pb, ReadMacInt32(pb + ioDirID), false, src);
+	if (result != noErr || src.item == NULL)
 		return result;
+	FSItem *fs_item = src.item;
 	if (fs_item->id <= ROOT_ID)
 		return badMovErr;
 
 	char old_path[MAX_PATH_LENGTH];
-	strncpy(old_path, full_path, MAX_PATH_LENGTH - 1);
-	old_path[MAX_PATH_LENGTH - 1] = 0;
+	get_path_for_fsitem_buf(fs_item, old_path);
 
 	// Find destination directory
 	Mac2Mac_memcpy(fs_data + fsPB, pb, SIZEOF_IOParam);
+	if (ReadMacInt16(pb + ioVRefNum) == 0 && src.vcb != 0)
+		WriteMacInt16(fs_data + fsPB + ioVRefNum, ReadMacInt16(src.vcb + vcbVRefNum));
 	WriteMacInt32(fs_data + fsPB + ioNamePtr, ReadMacInt32(pb + ioNewName));
 	FSItem *new_dir_item;
 	result = get_item_and_path(fs_data + fsPB, ReadMacInt32(pb + ioNewDirID), new_dir_item);
@@ -2841,6 +2838,7 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_open(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);
 
 		case kFSMOpenDF:
+			// _HFSDispatch 0x001A (PBOpenDFSync/FSpOpenDF) always passes HParmBlkPtr without kHFSMask
 			return fs_open(paramBlock, ReadMacInt32(paramBlock + ioDirID), vcb, false);
 
 		case kFSMClose:
@@ -2947,6 +2945,7 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_set_vol_info(paramBlock);
 
 		case kFSMMakeFSSpec:
+			// _HFSDispatch 0x001B (PBMakeFSSpecSync) always passes HParmBlkPtr without kHFSMask
 			return fs_make_fsspec(paramBlock, ReadMacInt32(paramBlock + ioDirID), vcb);
 
 		case kFSMCreateFileIDRef:

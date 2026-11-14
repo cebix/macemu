@@ -119,6 +119,7 @@ enum {
 	permErr			= -54,			/* permission error */
 	nsDrvErr		= -56,			/* no such driver number */
 	extFSErr		= -58,			/* external file system */
+	wrPermErr		= -61,			/* write permissions error */
 	noDriveErr		= -64,			/* drive not installed */
 	offLinErr		= -65,			/* r/w requested for an off-line drive */
 	noNybErr		= -66,			/* couldn't find 5 nybbles in 200 tries */

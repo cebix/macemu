@@ -71,7 +71,8 @@ void extfs_exit(void)
 void add_path_component(char *path, const char *component)
 {
 	size_t l = strlen(path);
-	if (l > 0 && l < MAX_PATH_LENGTH - 1 && path[l - 1] != HOST_DIRSEP_CHAR) {
+	// On Windows, RootPath is "" so a leading '\' is required to distinguish host drives from Virtual Desktop items
+	if (((l > 0 && path[l - 1] != HOST_DIRSEP_CHAR) || (l == 0 && component[0] != 0 && component[0] != HOST_DIRSEP_CHAR)) && l < MAX_PATH_LENGTH - 1) {
 		path[l] = HOST_DIRSEP_CHAR;
 		path[l + 1] = 0;
 		l++;
@@ -274,7 +275,7 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 			int ext_len = strlen(e2t_translation[i].ext);
 			if (path_len < ext_len)
 				continue;
-			if (!strcmp(path + path_len - ext_len, e2t_translation[i].ext)) {
+			if (!_stricmp(path + path_len - ext_len, e2t_translation[i].ext)) {
 				WriteMacInt32(finfo + fdType, e2t_translation[i].type);
 				WriteMacInt32(finfo + fdCreator, e2t_translation[i].creator);
 				break;
@@ -330,7 +331,9 @@ uint32 get_rfork_size(const char *path)
 	
 	// Close file and return size
 	close(fd);
-	return size < 0 ? 0 : size;
+	if (size < 0)
+		return 0;
+	return size > (off_t)0x7fffffffU ? 0x7fffffffU : (uint32)size;
 }
 
 int open_rfork(const char *path, int flag)
