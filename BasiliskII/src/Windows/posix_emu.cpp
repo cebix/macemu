@@ -870,8 +870,13 @@ int my_open( const char *path, int mode, ... )
 	// Windows "open" does not handle _O_CREAT and _O_BINARY as it should
 	if(mode & _O_CREAT) {
 		if(exists(p)) {
-			result = _topen( p, mode & ~_O_CREAT );
-			D(bug(TEXT("open-nocreat(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
+			if(mode & _O_EXCL) {
+				errno = EEXIST;
+				result = -1;
+			} else {
+				result = _topen( p, mode & ~_O_CREAT );
+				D(bug(TEXT("open-nocreat(%s,%s,%d) = %d\n"), tpath.get(), p, mode, result));
+			}
 		} else {
 			result = _tcreat( p, _S_IWRITE|_S_IREAD );
 			if(result < 0) {

@@ -88,6 +88,7 @@ enum {
 	permErr			= -54,
 	nsDrvErr		= -56,
 	extFSErr		= -58,
+	wrPermErr		= -61,
 	noDriveErr		= -64,
 	offLinErr		= -65,
 	noNybErr		= -66,
