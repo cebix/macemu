@@ -258,8 +258,10 @@ enum {
 	ffsGetIconInfoMessage		= 7
 };
 
-// Error codes from FSM functions
+// Error codes from FSM and HFS functions
 enum {
+	badMovErr					= -122,
+	wrgVolTypErr				= -123,
 	fsmFFSNotFoundErr			= -431,
 	fsmBusyFFSErr				= -432,
 	fsmBadFFSNameErr			= -433,
@@ -307,13 +309,22 @@ enum {
 	kIsOnDesk					= 0x0001,
 	kColor						= 0x000E,
 	kIsShared					= 0x0040,
+	kHasNoINITs					= 0x0080,
 	kHasBeenInited				= 0x0100,
 	kHasCustomIcon				= 0x0400,
 	kIsStationery				= 0x0800,
 	kNameLocked					= 0x1000,
 	kHasBundle					= 0x2000,
 	kIsInvisible				= 0x4000,
-	kIsAlias					= 0x8000
+	kIsAlias					= 0x8000,
+	kFolderValidFlagsMask		= (kIsOnDesk | kColor | kHasCustomIcon | kNameLocked | kHasBundle | kIsInvisible)
+};
+
+enum {	// FSSpec struct
+	fsSpecVRefNum = 0,
+	fsSpecParID = 2,
+	fsSpecName = 6,
+	SIZEOF_FSSpec = 70
 };
 
 enum {	// FInfo struct
@@ -338,9 +349,11 @@ enum {	// FXInfo struct
 enum {	// HFileParam/HFileInfo struct
 	ioFRefNum = 24,
 	ioFVersNum = 26,
+	ioFFiller1 = 27,
 	ioFDirIndex = 28,
 	ioFlAttrib = 30,
 	ioACUser = 31,
+	ioFlVersNum = 31,
 	ioFlFndrInfo = 32,
 	ioDirID = 48,
 	ioFlStBlk = 52,
@@ -379,6 +392,8 @@ enum {	// HDirParam/DirInfo struct
 	ioDrUsrWds = 32,
 	ioDrDirID = 48,
 	ioDrNmFls = 52,
+	ioDrFiller3 = 54,
+	SIZEOF_ioDrFiller3 = 18,
 	ioDrCrDat = 72,
 	ioDrMdDat = 76,
 	ioDrBkDat = 80,
@@ -387,6 +402,7 @@ enum {	// HDirParam/DirInfo struct
 };
 
 enum {	// WDParam struct
+	ioWDCreated = 24,
 	ioWDIndex = 26,
 	ioWDProcID = 28,
 	ioWDVRefNum = 32,
@@ -394,7 +410,8 @@ enum {	// WDParam struct
 	SIZEOF_WDParam = 52
 };
 
-enum {	// HVolumeParam struct
+enum {	// HVolumeParam/XVolumeParam struct
+	ioXVersion = 24,
 	ioVolIndex = 28,
 	ioVCrDate = 30,
 	ioVLsMod = 34,
@@ -417,7 +434,16 @@ enum {	// HVolumeParam struct
 	ioVWrCnt = 78,
 	ioVFilCnt = 82,
 	ioVDirCnt = 86,
-	ioVFndrInfo = 90
+	ioVFndrInfo = 90,
+	ioVTotalBytes = 122,
+	ioVFreeBytes = 130
+};
+
+enum {	// FIDParam struct
+	ioDestNamePtr = 28,
+	ioDestDirID = 36,
+	ioSrcDirID = 48,
+	ioFileID = 54
 };
 
 enum {	// CMovePBRec struct

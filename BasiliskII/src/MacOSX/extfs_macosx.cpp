@@ -21,10 +21,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/attr.h>
-#include <sys/syscall.h>
+#include <sys/xattr.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
 
@@ -48,50 +51,25 @@
 #include "debug.h"
 
 
-// Default Finder flags
+// Default Finder flags for files (must NOT be set on folders)
 const uint16 DEFAULT_FINDER_FLAGS = kHasBeenInited;
 
 
 /*
- *  Extended attributes (Tiger+)
+ *  Extended attributes
  */
 
-#define USE_XATTRS g_use_xattrs
-static bool g_use_xattrs = false;
-
-#define XATTR_TEST   "org.BasiliskII.TestAttr"
 #define XATTR_FINFO  "org.BasiliskII.FinderInfo"
 #define XATTR_FXINFO "org.BasiliskII.ExtendedFinderInfo"
 
-static bool get_xattr(const char *path, const char *name, void *value, uint32 size)
+static bool get_xattr(const char *path, const char *name, void *value, size_t size)
 {
-	return syscall(SYS_getxattr, path, name, value, size, 0, 0) == size;
+	return getxattr(path, name, value, size, 0, 0) == (ssize_t)size;
 }
 
-static bool set_xattr(const char *path, const char *name, const void *value, uint32 size)
+static bool set_xattr(const char *path, const char *name, const void *value, size_t size)
 {
-	return syscall(SYS_setxattr, path, name, value, size, 0, 0) == 0;
-}
-
-static bool remove_xattr(const char *path, const char *name)
-{
-	return syscall(SYS_removexattr, path, name, 0) == 0;
-}
-
-static bool check_xattr(void)
-{
-	const char *path = PrefsFindString("extfs");
-	if (path == NULL)
-		return false;
-	const uint32 sentinel = 0xdeadbeef;
-	if (!set_xattr(path, XATTR_TEST, &sentinel, sizeof(sentinel)))
-		return false;
-	uint32 v;
-	if (!get_xattr(path, XATTR_TEST, &v, sizeof(v)))
-		return false;
-	if (!remove_xattr(path, XATTR_TEST))
-		return false;
-	return v == sentinel;
+	return setxattr(path, name, value, size, 0, 0) == 0;
 }
 
 
@@ -101,7 +79,6 @@ static bool check_xattr(void)
 
 void extfs_init(void)
 {
-	g_use_xattrs = check_xattr();
 }
 
 
@@ -120,10 +97,10 @@ void extfs_exit(void)
 
 void add_path_component(char *path, const char *component)
 {
-	int l = strlen(path);
-	if (l < MAX_PATH_LENGTH-1 && path[l-1] != '/') {
+	size_t l = strlen(path);
+	if (l > 0 && l < MAX_PATH_LENGTH - 1 && path[l - 1] != '/') {
 		path[l] = '/';
-		path[l+1] = 0;
+		path[l + 1] = 0;
 	}
 	strlcat(path, component, MAX_PATH_LENGTH);
 }
@@ -142,9 +119,7 @@ struct FinderInfoAttrBuf {
 };
 
 static const FinderInfo kNativeFInfoMask  = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0x00};
-static const FinderInfo kNativeFXInfoMask = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0x00};
-static const FinderInfo kNativeDInfoMask  = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0x00};
-static const FinderInfo kNativeDXInfoMask = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0x00}; /* XXX: keep frScroll? */
+static const FinderInfo kNativeDInfoMask  = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x74,0x0f,0x00,0x00,0x00,0x00,0x00,0x00};
 
 static void finfo_merge(FinderInfo dst, const FinderInfo emu, const FinderInfo nat, const FinderInfo mask)
 {
@@ -160,7 +135,7 @@ static void finfo_split(FinderInfo dst, const FinderInfo emu, const FinderInfo m
 
 
 /*
- *  Finder info are kept in helper files (on anything below Tiger)
+ *  Finder info helper fallback files
  *
  *  Finder info:
  *    /path/.finf/file
@@ -181,8 +156,11 @@ static void make_finf_path(const char *src, char *dest, bool only_dir = false)
 		last_part = src;
 
 	// Copy everything before
-	strncpy(dest, src, last_part-src);
-	dest[last_part-src] = 0;
+	size_t prefix_len = (size_t)(last_part - src);
+	if (prefix_len >= MAX_PATH_LENGTH)
+		prefix_len = MAX_PATH_LENGTH - 1;
+	memcpy(dest, src, prefix_len);
+	dest[prefix_len] = 0;
 
 	// Add additional component
 	strlcat(dest, ".finf/", MAX_PATH_LENGTH);
@@ -196,8 +174,9 @@ static int create_finf_dir(const char *path)
 {
 	char finf_dir[MAX_PATH_LENGTH];
 	make_finf_path(path, finf_dir, true);
-	if (finf_dir[strlen(finf_dir) - 1] == '/')	// Remove trailing "/"
-		finf_dir[strlen(finf_dir) - 1] = 0;
+	size_t len = strlen(finf_dir);
+	if (len > 0 && finf_dir[len - 1] == '/')	// Remove trailing "/"
+		finf_dir[len - 1] = 0;
 	return mkdir(finf_dir, 0777);
 }
 
@@ -232,7 +211,7 @@ static int open_finf(const char *path, int flag)
 
 static void make_rsrc_path(const char *src, char *dest)
 {
-	int l = strlen(src);
+	size_t l = strlen(src);
 	if (l + 1 + 16 + 1 <= MAX_PATH_LENGTH)
 		memcpy(dest, src, l + 1);
 	else {
@@ -243,7 +222,7 @@ static void make_rsrc_path(const char *src, char *dest)
 		dest[1] = '\0';
 	}
 
-   	add_path_component(dest, "..namedfork/rsrc");
+	add_path_component(dest, "..namedfork/rsrc");
 }
 
 static int open_rsrc(const char *path, int flag)
@@ -252,8 +231,8 @@ static int open_rsrc(const char *path, int flag)
 	make_rsrc_path(path, rsrc_path);
 
 	int fd = open(rsrc_path, flag);
-	if (fd < 0 && flag == O_WRONLY)
-		fd = open(rsrc_path, O_WRONLY | O_CREAT); // for APFS
+	if (fd < 0 && (flag == O_WRONLY || flag == O_RDWR))
+		fd = open(rsrc_path, flag | O_CREAT, 0666); // for APFS
 	return fd;
 }
 
@@ -329,13 +308,15 @@ static const ext2type e2t_translation[] = {
 	{NULL, 0, 0}	// End marker
 };
 
-// Get emulated Finder info from metadata (Tiger+)
+// Get emulated Finder info from extended attributes
 static bool get_finfo_from_xattr(const char *path, uint8 *finfo, uint8 *fxinfo)
 {
 	if (!get_xattr(path, XATTR_FINFO, finfo, SIZEOF_FInfo))
 		return false;
-	if (fxinfo && !get_xattr(path, XATTR_FXINFO, fxinfo, SIZEOF_FXInfo))
-		return false;
+	if (fxinfo) {
+		if (!get_xattr(path, XATTR_FXINFO, fxinfo, SIZEOF_FXInfo))
+			memset(fxinfo, 0, SIZEOF_FXInfo);
+	}
 	return true;
 }
 
@@ -347,10 +328,17 @@ static bool get_finfo_from_helper(const char *path, uint8 *finfo, uint8 *fxinfo)
 		return false;
 
 	ssize_t actual = read(fd, finfo, SIZEOF_FInfo);
-	if (fxinfo)
-		actual += read(fd, fxinfo, SIZEOF_FXInfo);
+	if (actual != SIZEOF_FInfo) {
+		close(fd);
+		return false;
+	}
+	if (fxinfo) {
+		ssize_t fx_actual = read(fd, fxinfo, SIZEOF_FXInfo);
+		if (fx_actual != SIZEOF_FXInfo)
+			memset(fxinfo, 0, SIZEOF_FXInfo);
+	}
 	close(fd);
-	return actual == (SIZEOF_FInfo + (fxinfo ? SIZEOF_FXInfo : 0));
+	return true;
 }
 
 // Get native Finder info
@@ -371,62 +359,72 @@ static bool get_finfo_from_native(const char *path, uint8 *finfo, uint8 *fxinfo)
 	return true;
 }
 
-static bool do_get_finfo(const char *path, bool has_fxinfo,
-						 FinderInfo emu_finfo, FinderInfo emu_fxinfo,
-						 FinderInfo nat_finfo, FinderInfo nat_fxinfo)
-{
-	memset(emu_finfo, 0, SIZEOF_FInfo);
-	if (has_fxinfo)
-		memset(emu_fxinfo, 0, SIZEOF_FXInfo);
-	*((uint16 *)(emu_finfo + fdFlags)) = htons(DEFAULT_FINDER_FLAGS);
-	*((uint32 *)(emu_finfo + fdLocation)) = htonl((uint32)-1);
-
-	if (USE_XATTRS)
-		get_finfo_from_xattr(path, emu_finfo, has_fxinfo ? emu_fxinfo : NULL);
-	else
-		get_finfo_from_helper(path, emu_finfo, has_fxinfo ? emu_fxinfo : NULL);
-
-	if (!get_finfo_from_native(path, nat_finfo, has_fxinfo ? nat_fxinfo : NULL))
-		return false;
-	return true;
-}
-
 void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
-	// Set default finder info
+	// Initialize clean defaults: DInfo/DXInfo must be all zeros for folders (never set kHasBeenInited or kIsAlias on folders!)
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
 	if (fxinfo)
 		Mac_memset(fxinfo, 0, SIZEOF_FXInfo);
-	WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
-	WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	if (!is_dir) {
+		WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
+		WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	}
 
-	// Merge emulated and native Finder info
+	// Prefer explicit Mac OS Finder info stored by BasiliskII/SheepShaver in xattrs or .finf helper
 	FinderInfo emu_finfo, emu_fxinfo;
-	FinderInfo nat_finfo, nat_fxinfo;
-	if (do_get_finfo(path, fxinfo, emu_finfo, emu_fxinfo, nat_finfo, nat_fxinfo)) {
-		if (!is_dir) {
-			finfo_merge(Mac2HostAddr(finfo), emu_finfo, nat_finfo, kNativeFInfoMask);
-			if (fxinfo)
-				finfo_merge(Mac2HostAddr(fxinfo), emu_fxinfo, nat_fxinfo, kNativeFXInfoMask);
+	memset(emu_finfo, 0, SIZEOF_FInfo);
+	memset(emu_fxinfo, 0, SIZEOF_FXInfo);
+	if (get_finfo_from_xattr(path, emu_finfo, fxinfo ? emu_fxinfo : NULL) ||
+		get_finfo_from_helper(path, emu_finfo, fxinfo ? emu_fxinfo : NULL)) {
+		Host2Mac_memcpy(finfo, emu_finfo, SIZEOF_FInfo);
+		if (fxinfo)
+			Host2Mac_memcpy(fxinfo, emu_fxinfo, SIZEOF_FXInfo);
+		if (is_dir) {
+			uint16 flags = ReadMacInt16(finfo + frFlags) & kFolderValidFlagsMask;
+			WriteMacInt16(finfo + frFlags, flags);
+		} else {
+			if ((ReadMacInt16(finfo + fdFlags) & kIsAlias) && get_rfork_size(path) == 0)
+				WriteMacInt16(finfo + fdFlags, ReadMacInt16(finfo + fdFlags) & ~kIsAlias);
 			if (ReadMacInt32(finfo + fdType) != 0 && ReadMacInt32(finfo + fdCreator) != 0)
 				return;
 		}
-		else {
-			finfo_merge(Mac2HostAddr(finfo), emu_finfo, nat_finfo, kNativeDInfoMask);
-			if (fxinfo)
-				finfo_merge(Mac2HostAddr(fxinfo), emu_fxinfo, nat_fxinfo, kNativeDXInfoMask);
+		if (is_dir)
 			return;
+	} else if (is_dir) {
+		// Folders without explicit Mac OS DInfo keep clean all-zero DInfo/DXInfo
+		return;
+	} else {
+		// Regular file without explicit Mac OS FInfo: inspect native HFS+/APFS FinderInfo if non-empty
+		FinderInfo nat_finfo;
+		if (get_finfo_from_native(path, nat_finfo, NULL)) {
+			bool any_native = false;
+			for (int i = 0; i < 10; i++) {
+				if (nat_finfo[i] != 0) {
+					any_native = true;
+					break;
+				}
+			}
+			if (any_native) {
+				Host2Mac_memcpy(finfo + fdType, nat_finfo + fdType, 8);
+				uint16 nat_flags = ((uint16)nat_finfo[fdFlags] << 8) | nat_finfo[fdFlags + 1];
+				// Strip native macOS data-fork Bookmark/Alias flag if file has no Mac OS 9 resource fork
+				if ((nat_flags & kIsAlias) && get_rfork_size(path) == 0)
+					nat_flags &= ~kIsAlias;
+				WriteMacInt16(finfo + fdFlags, nat_flags | DEFAULT_FINDER_FLAGS);
+				if (ReadMacInt32(finfo + fdType) != 0 && ReadMacInt32(finfo + fdCreator) != 0)
+					return;
+			}
 		}
 	}
 
-	// No native Finder info, translate file name extension to MacOS type/creator
-	if (!is_dir) {
-		int path_len = strlen(path);
-		for (int i=0; e2t_translation[i].ext; i++) {
-			int ext_len = strlen(e2t_translation[i].ext);
+	// Fallback: translate file name extension (case-insensitively) to MacOS type/creator
+	if (!is_dir && ReadMacInt32(finfo + fdType) == 0 && ReadMacInt32(finfo + fdCreator) == 0) {
+		size_t path_len = strlen(path);
+		for (int i = 0; e2t_translation[i].ext; i++) {
+			size_t ext_len = strlen(e2t_translation[i].ext);
 			if (path_len < ext_len)
 				continue;
-			if (!strcmp(path + path_len - ext_len, e2t_translation[i].ext)) {
+			if (!strcasecmp(path + path_len - ext_len, e2t_translation[i].ext)) {
 				WriteMacInt32(finfo + fdType, e2t_translation[i].type);
 				WriteMacInt32(finfo + fdCreator, e2t_translation[i].creator);
 				break;
@@ -435,7 +433,7 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 	}
 }
 
-// Set emulated Finder info into metada (Tiger+)
+// Set emulated Finder info into extended attributes
 static bool set_finfo_to_xattr(const char *path, const uint8 *finfo, const uint8 *fxinfo)
 {
 	if (!set_xattr(path, XATTR_FINFO, finfo, SIZEOF_FInfo))
@@ -459,8 +457,8 @@ static bool set_finfo_to_helper(const char *path, const uint8 *finfo, const uint
 	return actual == (SIZEOF_FInfo + (fxinfo ? SIZEOF_FXInfo : 0));
 }
 
-// Set native Finder info
-static bool set_finfo_to_native(const char *path, const uint8 *finfo, const uint8 *fxinfo, bool is_dir)
+// Mirror compatible Finder info fields into native FinderInfo without clobbering APFS extended_flags
+static bool set_finfo_to_native(const char *path, const uint8 *finfo, bool is_dir)
 {
 	struct attrlist attrList;
 	memset(&attrList, 0, sizeof(attrList));
@@ -472,8 +470,6 @@ static bool set_finfo_to_native(const char *path, const uint8 *finfo, const uint
 		return false;
 
 	finfo_merge(attrBuf.finderInfo, attrBuf.finderInfo, finfo, is_dir ? kNativeDInfoMask : kNativeFInfoMask);
-	if (fxinfo)
-		finfo_merge(attrBuf.extendedFinderInfo, attrBuf.extendedFinderInfo, fxinfo, is_dir ? kNativeDXInfoMask : kNativeFXInfoMask);
 
 	attrList.commonattr = ATTR_CMN_FNDRINFO;
 	if (setattrlist(path, &attrList, attrBuf.finderInfo, 2 * SIZEOF_FInfo, 0) < 0)
@@ -483,22 +479,25 @@ static bool set_finfo_to_native(const char *path, const uint8 *finfo, const uint
 
 void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
-	// Extract native Finder info flags
-	FinderInfo nat_finfo, nat_fxinfo;
-	const uint8 *emu_finfo = Mac2HostAddr(finfo);
+	FinderInfo clean_finfo;
+	Mac2Host_memcpy(clean_finfo, finfo, SIZEOF_FInfo);
+	if (is_dir) {
+		uint16 flags = (((uint16)clean_finfo[frFlags] << 8) | clean_finfo[frFlags + 1]) & kFolderValidFlagsMask;
+		clean_finfo[frFlags] = (uint8)(flags >> 8);
+		clean_finfo[frFlags + 1] = (uint8)(flags & 0xff);
+	}
 	const uint8 *emu_fxinfo = fxinfo ? Mac2HostAddr(fxinfo) : NULL;
-	finfo_split(nat_finfo, emu_finfo, is_dir ? kNativeDInfoMask : kNativeFInfoMask);
-	if (fxinfo)
-		finfo_split(nat_fxinfo, emu_fxinfo, is_dir ? kNativeDXInfoMask : kNativeFXInfoMask);
 
-	// Update Finder info file (all flags)
-	if (USE_XATTRS)
-		set_finfo_to_xattr(path, emu_finfo, emu_fxinfo);
-	else
-		set_finfo_to_helper(path, emu_finfo, emu_fxinfo);
+	// Store full Mac OS Finder info in xattr, falling back to .finf helper only if xattrs are unsupported
+	if (!set_finfo_to_xattr(path, clean_finfo, emu_fxinfo)) {
+		if (errno == ENOTSUP || errno == EOPNOTSUPP)
+			set_finfo_to_helper(path, clean_finfo, emu_fxinfo);
+	}
 
-	// Update native Finder info flags
-	set_finfo_to_native(path, nat_finfo, nat_fxinfo, is_dir);
+	// Mirror compatible fields to native FinderInfo
+	FinderInfo nat_finfo;
+	finfo_split(nat_finfo, clean_finfo, is_dir ? kNativeDInfoMask : kNativeFInfoMask);
+	set_finfo_to_native(path, nat_finfo, is_dir);
 }
 
 
@@ -515,10 +514,12 @@ uint32 get_rfork_size(const char *path)
 
 	// Get size
 	off_t size = lseek(fd, 0, SEEK_END);
-	
-	// Close file and return size
+
+	// Close file and return size (clamped to positive SInt32)
 	close(fd);
-	return size < 0 ? 0 : size;
+	if (size <= 0)
+		return 0;
+	return (size > (off_t)0x7fffffff) ? 0x7fffffffU : (uint32)size;
 }
 
 int open_rfork(const char *path, int flag)
@@ -528,7 +529,9 @@ int open_rfork(const char *path, int flag)
 
 void close_rfork(const char *path, int fd)
 {
-	close(fd);
+	(void)path;
+	if (fd >= 0)
+		close(fd);
 }
 
 
@@ -561,24 +564,25 @@ ssize_t extfs_write(int fd, void *buffer, size_t length)
 
 bool extfs_remove(const char *path)
 {
-	// Remove helpers first, don't complain if this fails
 	char helper_path[MAX_PATH_LENGTH];
-	make_finf_path(path, helper_path, false);
-	remove(helper_path);
-	make_rsrc_path(path, helper_path);
-	remove(helper_path);
 
-	// Now remove file or directory (and helper directories in the directory)
+	// Remove file or directory first so failed removals never destroy metadata
 	if (remove(path) < 0) {
 		if (errno == EISDIR || errno == ENOTEMPTY) {
-			helper_path[0] = 0;
-			strncpy(helper_path, path, MAX_PATH_LENGTH-1);
+			strncpy(helper_path, path, MAX_PATH_LENGTH - 1);
+			helper_path[MAX_PATH_LENGTH - 1] = 0;
 			add_path_component(helper_path, ".finf");
 			rmdir(helper_path);
-			return rmdir(path) == 0;
-		} else
+			if (rmdir(path) < 0)
+				return false;
+		} else {
 			return false;
+		}
 	}
+
+	// Remove legacy .finf helper if present
+	make_finf_path(path, helper_path, false);
+	remove(helper_path);
 	return true;
 }
 
@@ -590,18 +594,19 @@ bool extfs_remove(const char *path)
 
 bool extfs_rename(const char *old_path, const char *new_path)
 {
-	// Rename helpers first, don't complain if this fails
+	// Rename file/directory first (moves native resource fork and xattrs atomically)
+	if (rename(old_path, new_path) < 0)
+		return false;
+
+	// Migrate legacy .finf helper if one exists for old_path
 	char old_helper_path[MAX_PATH_LENGTH], new_helper_path[MAX_PATH_LENGTH];
 	make_finf_path(old_path, old_helper_path, false);
-	make_finf_path(new_path, new_helper_path, false);
-	create_finf_dir(new_path);
-	rename(old_helper_path, new_helper_path);
-	make_rsrc_path(old_path, old_helper_path);
-	make_rsrc_path(new_path, new_helper_path);
-	rename(old_helper_path, new_helper_path);
-
-	// Now rename file
-	return rename(old_path, new_path) == 0;
+	if (access(old_helper_path, F_OK) == 0) {
+		make_finf_path(new_path, new_helper_path, false);
+		create_finf_dir(new_path);
+		rename(old_helper_path, new_helper_path);
+	}
+	return true;
 }
 
 
@@ -609,16 +614,26 @@ bool extfs_rename(const char *old_path, const char *new_path)
  *  Strings (filenames) conversion
  */
 
-// Convert string in the specified source and target encodings
+// Convert string in the specified source and target encodings, substituting '?' for unmappable characters
 const char *convert_string(const char *str, CFStringEncoding from, CFStringEncoding to)
 {
+	if (str == NULL)
+		return "";
 	const char *ostr = str;
 	CFStringRef cfstr = CFStringCreateWithCString(NULL, str, from);
 	if (cfstr) {
 		static char buffer[MAX_PATH_LENGTH];
 		memset(buffer, 0, sizeof(buffer));
-		if (CFStringGetCString(cfstr, buffer, sizeof(buffer), to))
+		if (CFStringGetCString(cfstr, buffer, sizeof(buffer), to)) {
 			ostr = buffer;
+		} else {
+			CFIndex used = 0;
+			CFIndex total = CFStringGetLength(cfstr);
+			if (CFStringGetBytes(cfstr, CFRangeMake(0, total), to, '?', false, (UInt8 *)buffer, sizeof(buffer) - 1, &used) > 0 && used > 0) {
+				buffer[used] = 0;
+				ostr = buffer;
+			}
+		}
 		CFRelease(cfstr);
 	}
 	return ostr;

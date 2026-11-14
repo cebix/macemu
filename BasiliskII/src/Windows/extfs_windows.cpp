@@ -70,12 +70,14 @@ void extfs_exit(void)
 
 void add_path_component(char *path, const char *component)
 {
-	int l = strlen(path);
-	if (l < MAX_PATH_LENGTH-1 && path[l-1] != HOST_DIRSEP_CHAR) {
+	size_t l = strlen(path);
+	if (l > 0 && l < MAX_PATH_LENGTH - 1 && path[l - 1] != HOST_DIRSEP_CHAR) {
 		path[l] = HOST_DIRSEP_CHAR;
-		path[l+1] = 0;
+		path[l + 1] = 0;
+		l++;
 	}
-	strncat(path, component, MAX_PATH_LENGTH-1);
+	if (l < MAX_PATH_LENGTH - 1)
+		strncat(path, component, MAX_PATH_LENGTH - 1 - l);
 }
 
 
@@ -103,23 +105,32 @@ static void make_helper_path(const char *src, char *dest, const char *add, bool 
 		last_part = src;
 
 	// Copy everything before
-	strncpy(dest, src, last_part-src);
-	dest[last_part-src] = 0;
+	size_t prefix_len = (size_t)(last_part - src);
+	if (prefix_len >= MAX_PATH_LENGTH)
+		prefix_len = MAX_PATH_LENGTH - 1;
+	memcpy(dest, src, prefix_len);
+	dest[prefix_len] = 0;
 
 	// Add additional component
-	strncat(dest, add, MAX_PATH_LENGTH-1);
+	size_t cur_len = strlen(dest);
+	if (cur_len < MAX_PATH_LENGTH - 1)
+		strncat(dest, add, MAX_PATH_LENGTH - 1 - cur_len);
 
 	// Add last component
-	if (!only_dir)
-		strncat(dest, last_part, MAX_PATH_LENGTH-1);
+	if (!only_dir) {
+		cur_len = strlen(dest);
+		if (cur_len < MAX_PATH_LENGTH - 1)
+			strncat(dest, last_part, MAX_PATH_LENGTH - 1 - cur_len);
+	}
 }
 
 static int create_helper_dir(const char *path, const char *add)
 {
 	char helper_dir[MAX_PATH_LENGTH];
 	make_helper_path(path, helper_dir, add, true);
-	if (helper_dir[strlen(helper_dir) - 1] == HOST_DIRSEP_CHAR)	// Remove trailing "\"
-		helper_dir[strlen(helper_dir) - 1] = 0;
+	size_t len = strlen(helper_dir);
+	if (len > 0 && helper_dir[len - 1] == HOST_DIRSEP_CHAR)	// Remove trailing "\"
+		helper_dir[len - 1] = 0;
 	return mkdir(helper_dir, 0777);
 }
 
@@ -233,12 +244,14 @@ static const ext2type e2t_translation[] = {
 
 void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
-	// Set default finder info
+	// Set default finder info (folders must keep DInfo/DXInfo zeroed by default)
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
 	if (fxinfo)
 		Mac_memset(fxinfo, 0, SIZEOF_FXInfo);
-	WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
-	WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	if (!is_dir) {
+		WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
+		WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	}
 
 	// Read Finder info file
 	int fd = open_finf(path, O_RDONLY);
@@ -247,8 +260,11 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 		if (fxinfo)
 			actual += read(fd, Mac2HostAddr(fxinfo), SIZEOF_FXInfo);
 		close(fd);
-		if (actual >= SIZEOF_FInfo)
+		if (actual >= SIZEOF_FInfo) {
+			if (is_dir)
+				WriteMacInt16(finfo + frFlags, ReadMacInt16(finfo + frFlags) & kFolderValidFlagsMask);
 			return;
+		}
 	}
 
 	// No Finder info file, translate file name extension to MacOS type/creator
@@ -282,8 +298,16 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 	if (fd < 0)
 		return;
 
+	uint8 clean_finfo[SIZEOF_FInfo];
+	Mac2Host_memcpy(clean_finfo, finfo, SIZEOF_FInfo);
+	if (is_dir) {
+		uint16 flags = (((uint16)clean_finfo[frFlags] << 8) | clean_finfo[frFlags + 1]) & kFolderValidFlagsMask;
+		clean_finfo[frFlags] = (uint8)(flags >> 8);
+		clean_finfo[frFlags + 1] = (uint8)(flags & 0xff);
+	}
+
 	// Write file
-	write(fd, Mac2HostAddr(finfo), SIZEOF_FInfo);
+	write(fd, clean_finfo, SIZEOF_FInfo);
 	if (fxinfo)
 		write(fd, Mac2HostAddr(fxinfo), SIZEOF_FXInfo);
 	close(fd);
@@ -350,28 +374,31 @@ ssize_t extfs_write(int fd, void *buffer, size_t length)
 
 bool extfs_remove(const char *path)
 {
-	// Remove helpers first, don't complain if this fails
 	char helper_path[MAX_PATH_LENGTH];
+
+	// Remove file or directory first so failed removals never destroy metadata
+	if (remove(path) < 0) {
+		if (errno == EISDIR || errno == ENOTEMPTY) {
+			strncpy(helper_path, path, MAX_PATH_LENGTH - 1);
+			helper_path[MAX_PATH_LENGTH - 1] = 0;
+			add_path_component(helper_path, ".finf");
+			rmdir(helper_path);
+			strncpy(helper_path, path, MAX_PATH_LENGTH - 1);
+			helper_path[MAX_PATH_LENGTH - 1] = 0;
+			add_path_component(helper_path, ".rsrc");
+			rmdir(helper_path);
+			if (rmdir(path) < 0)
+				return false;
+		} else {
+			return false;
+		}
+	}
+
+	// Remove helpers if present
 	make_helper_path(path, helper_path, ".finf" HOST_DIRSEP_STR, false);
 	remove(helper_path);
 	make_helper_path(path, helper_path, ".rsrc" HOST_DIRSEP_STR, false);
 	remove(helper_path);
-
-	// Now remove file or directory (and helper directories in the directory)
-	if (remove(path) < 0) {
-		if (errno == EISDIR || errno == ENOTEMPTY) {
-			helper_path[0] = 0;
-			strncpy(helper_path, path, MAX_PATH_LENGTH-1);
-			add_path_component(helper_path, ".finf");
-			rmdir(helper_path);
-			helper_path[0] = 0;
-			strncpy(helper_path, path, MAX_PATH_LENGTH-1);
-			add_path_component(helper_path, ".rsrc");
-			rmdir(helper_path);
-			return rmdir(path) == 0;
-		} else
-			return false;
-	}
 	return true;
 }
 
@@ -383,19 +410,25 @@ bool extfs_remove(const char *path)
 
 bool extfs_rename(const char *old_path, const char *new_path)
 {
-	// Rename helpers first, don't complain if this fails
+	// Rename file/directory first
+	if (rename(old_path, new_path) < 0)
+		return false;
+
+	// Migrate helpers if present
 	char old_helper_path[MAX_PATH_LENGTH], new_helper_path[MAX_PATH_LENGTH];
 	make_helper_path(old_path, old_helper_path, ".finf" HOST_DIRSEP_STR, false);
-	make_helper_path(new_path, new_helper_path, ".finf" HOST_DIRSEP_STR, false);
-	create_helper_dir(new_path, ".finf" HOST_DIRSEP_STR);
-	rename(old_helper_path, new_helper_path);
+	if (access(old_helper_path, F_OK) == 0) {
+		make_helper_path(new_path, new_helper_path, ".finf" HOST_DIRSEP_STR, false);
+		create_helper_dir(new_path, ".finf" HOST_DIRSEP_STR);
+		rename(old_helper_path, new_helper_path);
+	}
 	make_helper_path(old_path, old_helper_path, ".rsrc" HOST_DIRSEP_STR, false);
-	make_helper_path(new_path, new_helper_path, ".rsrc" HOST_DIRSEP_STR, false);
-	create_helper_dir(new_path, ".rsrc" HOST_DIRSEP_STR);
-	rename(old_helper_path, new_helper_path);
-
-	// Now rename file
-	return rename(old_path, new_path) == 0;
+	if (access(old_helper_path, F_OK) == 0) {
+		make_helper_path(new_path, new_helper_path, ".rsrc" HOST_DIRSEP_STR, false);
+		create_helper_dir(new_path, ".rsrc" HOST_DIRSEP_STR);
+		rename(old_helper_path, new_helper_path);
+	}
+	return true;
 }
 
 

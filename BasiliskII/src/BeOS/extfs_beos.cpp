@@ -78,12 +78,14 @@ void extfs_exit(void)
 
 void add_path_component(char *path, const char *component)
 {
-	int l = strlen(path);
-	if (l < MAX_PATH_LENGTH-1 && path[l-1] != '/') {
+	size_t l = strlen(path);
+	if (l > 0 && l < MAX_PATH_LENGTH - 1 && path[l - 1] != '/') {
 		path[l] = '/';
-		path[l+1] = 0;
+		path[l + 1] = 0;
+		l++;
 	}
-	strncat(path, component, MAX_PATH_LENGTH-1);
+	if (l < MAX_PATH_LENGTH - 1)
+		strncat(path, component, MAX_PATH_LENGTH - 1 - l);
 }
 
 
@@ -140,12 +142,14 @@ static const mime2type m2t_translation[] = {
 
 void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 {
-	// Set default finder info
+	// Set default finder info (folders must keep DInfo/DXInfo zeroed by default)
 	Mac_memset(finfo, 0, SIZEOF_FInfo);
 	if (fxinfo)
 		Mac_memset(fxinfo, 0, SIZEOF_FXInfo);
-	WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
-	WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	if (!is_dir) {
+		WriteMacInt16(finfo + fdFlags, DEFAULT_FINDER_FLAGS);
+		WriteMacInt32(finfo + fdLocation, (uint32)-1);
+	}
 
 	// Open file
 	int fd = open(path, O_RDONLY);
@@ -186,8 +190,12 @@ void get_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 	}
 
 	// Read MACOS:HFS_FLAGS attribute
-	if (fs_read_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, tmp_buf, 2) == 2)
-		WriteMacInt16(finfo + fdFlags, (tmp_buf[0] << 8) | tmp_buf[1]);
+	if (fs_read_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, tmp_buf, 2) == 2) {
+		uint16 flags = (tmp_buf[0] << 8) | tmp_buf[1];
+		if (is_dir)
+			flags &= kFolderValidFlagsMask;
+		WriteMacInt16(finfo + fdFlags, flags);
+	}
 
 	// Close file
 	close(fd);
@@ -226,7 +234,10 @@ void set_finfo(const char *path, uint32 finfo, uint32 fxinfo, bool is_dir)
 
 	// Write MACOS:HFS_FLAGS attribute
 	uint16 flags = ReadMacInt16(finfo + fdFlags);
-	if (flags != DEFAULT_FINDER_FLAGS) {
+	if (is_dir)
+		flags &= kFolderValidFlagsMask;
+	uint16 default_flags = is_dir ? 0 : DEFAULT_FINDER_FLAGS;
+	if (flags != default_flags) {
 		tmp_buf[0] = flags >> 8;
 		tmp_buf[1] = flags;
 		fs_write_attr(fd, "MACOS:HFS_FLAGS", B_UINT16_TYPE, 0, tmp_buf, 2);
