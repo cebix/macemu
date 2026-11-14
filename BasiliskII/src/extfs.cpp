@@ -277,6 +277,34 @@ static FSItem *find_fsitem_guest(const char *guest_name, FSItem *parent)
 	return create_fsitem(macroman_to_host_encoding(guest_name), guest_name, parent);
 }
 
+static void retire_fsitem(FSItem *p)
+{
+	if (p == NULL || p->id <= ROOT_ID)
+		return;
+	int saved_errno = errno;
+	for (FSItem *c = first_fs_item; c != NULL; ) {
+		if (c->parent == p) {
+			retire_fsitem(c);
+			c = first_fs_item;
+		} else {
+			c = c->next;
+		}
+	}
+	if (p->parent)
+		p->parent->mtime = 0;
+	for (FSItem *prev = first_fs_item; prev->next != NULL; prev = prev->next) {
+		if (prev->next == p) {
+			prev->next = p->next;
+			if (last_fs_item == p)
+				last_fs_item = prev;
+			delete[] p->name;
+			delete p;
+			break;
+		}
+	}
+	errno = saved_errno;
+}
+
 /*
  *  Get full path (->full_path) for given FSItem
  */
@@ -368,11 +396,15 @@ static int16 errno2oserr(void)
 {
 	D(bug(" errno %08x\n", errno));
 	switch (errno) {
-		case 0:
-			return noErr;
+		case ENOTDIR:
+			return dirNFErr;
 		case ENOENT:
 		case EISDIR:
 			return fnfErr;
+		case ENAMETOOLONG:
+			return bdNamErr;
+		case EINVAL:
+			return paramErr;
 		case EACCES:
 		case EPERM:
 			return permErr;
@@ -386,9 +418,10 @@ static int16 errno2oserr(void)
 		case EROFS:
 			return wPrErr;
 		case EMFILE:
+		case ENFILE:
 			return tmfoErr;
 		case ENOMEM:
-			return -108;
+			return memFullErr;
 		case EIO:
 		default:
 			return ioErr;
@@ -1076,7 +1109,7 @@ static int16 fs_volume_mount(uint32 pb)
 	r.a[0] = fs_data + fsReturn;
 	r.a[1] = vcb;
 	Execute68k(fs_data + fsAddNewVCB, &r);
-	int16 vRefNum = (int16)ReadMacInt32(fs_data + fsReturn);
+	int16 vRefNum = (int16)ReadMacInt16(fs_data + fsReturn);
 	D(bug("  UTAddNewVCB() returned %d, vRefNum %d\n", r.d[0], vRefNum));
 	if (r.d[0] & 0xffff)
 		return (int16)r.d[0];
@@ -1107,9 +1140,11 @@ static int16 fs_unmount_vol(uint32 vcb)
 }
 
 // Get information about a volume (HVolumeParam)
-static int16 fs_get_vol_info(uint32 pb, bool hfs)
+static int16 fs_get_vol_info(uint32 pb, bool hfs, uint32 vcb)
 {
 //	D(bug(" fs_get_vol_info(%08lx)\n", pb));
+	if (vcb)
+		WriteMacInt16(pb + ioVRefNum, ReadMacInt16(vcb + vcbVRefNum));
 
 	// Fill in struct
 	if (ReadMacInt32(pb + ioNamePtr))
@@ -1133,6 +1168,7 @@ static int16 fs_get_vol_info(uint32 pb, bool hfs)
 	WriteMacInt32(pb + ioVNxtCNID, next_cnid);
 	WriteMacInt16(pb + ioVFrBlk, 0xffff);		//!!
 	if (hfs) {
+		WriteMacInt16(pb + ioVSigWord, 0x4244);
 		WriteMacInt16(pb + ioVDrvInfo, drive_number);
 		WriteMacInt16(pb + ioVDRefNum, ReadMacInt16(fs_data + fsDrvStatus + dsQRefNum));
 		WriteMacInt16(pb + ioVFSID, MY_FSID);
@@ -1166,27 +1202,38 @@ static int16 fs_get_vol_parms(uint32 pb)
 		actual = SIZEOF_GetVolParmsInfoBuffer;
 	WriteMacInt32(pb + ioActCount, actual);
 	uint32 p = ReadMacInt32(pb + ioBuffer);
-	if (actual > vMVersion) WriteMacInt16(p + vMVersion, 2);
-	if (actual > vMAttrib) WriteMacInt32(p + vMAttrib, kNoMiniFndr | kNoVNEdit | kNoLclSync | kTrshOffLine | kNoSwitchTo | kNoBootBlks | kNoSysDir | kHasExtFSVol);
-	if (actual > vMLocalHand) WriteMacInt32(p + vMLocalHand, 0);
-	if (actual > vMServerAdr) WriteMacInt32(p + vMServerAdr, 0);
-	if (actual > vMVolumeGrade) WriteMacInt32(p + vMVolumeGrade, 0);
-	if (actual > vMForeignPrivID) WriteMacInt16(p + vMForeignPrivID, 0);
+	if (p == 0 && actual > 0)
+		return paramErr;
+	if (actual >= 2) WriteMacInt16(p + vMVersion, 2);
+	if (actual >= 6) WriteMacInt32(p + vMAttrib, kNoMiniFndr | kNoVNEdit | kNoLclSync | kTrshOffLine | kNoSwitchTo | kNoBootBlks | kNoSysDir | kHasExtFSVol);
+	if (actual >= 10) WriteMacInt32(p + vMLocalHand, 0);
+	if (actual >= 14) WriteMacInt32(p + vMServerAdr, 0);
+	if (actual >= 18) WriteMacInt32(p + vMVolumeGrade, 0);
+	if (actual >= 20) WriteMacInt16(p + vMForeignPrivID, 0);
 	return noErr;
 }
 
 // Get default volume (WDParam)
-static int16 fs_get_vol(uint32 pb)
+static int16 fs_get_vol(uint32 pb, bool hfs)
 {
 	D(bug(" fs_get_vol(%08lx)\n", pb));
 	M68kRegisters r;
 
-	// Getting default volume
+	// Non-HFS PBGetVol passes a 50-byte IOParam; use scratch WDParam so UTGetDefaultVol doesn't overflow ioWDDirID
+	uint32 wdpb = hfs ? pb : (fs_data + fsReturn);
+	if (!hfs) {
+		Mac_memset(wdpb, 0, SIZEOF_WDParam);
+		WriteMacInt32(wdpb + ioNamePtr, ReadMacInt32(pb + ioNamePtr));
+	}
+
 	D(bug("  getting default volume\n"));
-	r.a[0] = pb;
+	r.a[0] = wdpb;
 	Execute68k(fs_data + fsGetDefaultVol, &r);
 	D(bug("  UTGetDefaultVol() returned %d\n", r.d[0]));
-	return (int16)r.d[0];
+	int16 err = (int16)r.d[0];
+	if (!hfs && err == noErr)
+		WriteMacInt16(pb + ioVRefNum, ReadMacInt16(wdpb + ioVRefNum));
+	return err;
 }
 
 // Set default volume (WDParam)
@@ -1246,7 +1293,7 @@ static int16 fs_set_vol(uint32 pb, bool hfs, uint32 vcb)
 }
 
 // Query file attributes (HFileParam)
-static int16 fs_get_file_info(uint32 pb, bool hfs, uint32 dirID)
+static int16 fs_get_file_info(uint32 pb, uint32 dirID)
 {
 	D(bug(" fs_get_file_info(%08lx), vRefNum %d, name %.31s, idx %d, dirID %d\n", pb, ReadMacInt16(pb + ioVRefNum), Mac2HostAddr(ReadMacInt32(pb + ioNamePtr) + 1), ReadMacInt16(pb + ioFDirIndex), dirID));
 
@@ -1296,13 +1343,16 @@ read_next_de:
 
 	// Get stats
 	struct stat st;
-	if (stat(full_path, &st))
-		return fnfErr;
+	if (stat(full_path, &st) < 0) {
+		if (dir_index <= 0 && (errno == ENOENT || errno == ENOTDIR))
+			retire_fsitem(fs_item);
+		return (errno == ENOTDIR) ? dirNFErr : fnfErr;
+	}
 	if (S_ISDIR(st.st_mode))
 		return fnfErr;
 
 	// Fill in struct from fs_item and stats
-	if (ReadMacInt32(pb + ioNamePtr))
+	if (dir_index > 0 && ReadMacInt32(pb + ioNamePtr))
 		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->guest_name);
 	WriteMacInt16(pb + ioFRefNum, 0);
 	WriteMacInt8(pb + ioFlAttrib, access(full_path, W_OK) == 0 ? 0 : faLocked);
@@ -1317,7 +1367,7 @@ read_next_de:
 #endif
 	WriteMacInt32(pb + ioFlMdDat, TimeToMacTime(st.st_mtime));
 
-	get_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0, false);
+	get_finfo(full_path, pb + ioFlFndrInfo, 0, false);
 
 	WriteMacInt16(pb + ioFlStBlk, 0);
 	uint32 file_size = (uint32) st.st_size;
@@ -1327,17 +1377,11 @@ read_next_de:
 	uint32 rf_size = get_rfork_size(full_path);
 	WriteMacInt32(pb + ioFlRLgLen, rf_size);
 	WriteMacInt32(pb + ioFlRPyLen, (rf_size | (AL_BLK_SIZE - 1)) + 1);
-
-	if (hfs) {
-		WriteMacInt32(pb + ioFlBkDat, 0);
-		WriteMacInt32(pb + ioFlParID, fs_item->parent_id);
-		WriteMacInt32(pb + ioFlClpSiz, 0);
-	}
 	return noErr;
 }
 
 // Set file attributes (HFileParam)
-static int16 fs_set_file_info(uint32 pb, bool hfs, uint32 dirID)
+static int16 fs_set_file_info(uint32 pb, uint32 dirID)
 {
 	D(bug(" fs_set_file_info(%08lx), vRefNum %d, name %.31s, idx %d, dirID %d\n", pb, ReadMacInt16(pb + ioVRefNum), Mac2HostAddr(ReadMacInt32(pb + ioNamePtr) + 1), ReadMacInt16(pb + ioFDirIndex), dirID));
 
@@ -1349,13 +1393,16 @@ static int16 fs_set_file_info(uint32 pb, bool hfs, uint32 dirID)
 
 	// Get stats
 	struct stat st;
-	if (stat(full_path, &st) < 0)
+	if (stat(full_path, &st) < 0) {
+		if (errno == ENOENT || errno == ENOTDIR)
+			retire_fsitem(fs_item);
 		return errno2oserr();
+	}
 	if (S_ISDIR(st.st_mode))
 		return fnfErr;
 
 	// Set Finder info
-	set_finfo(full_path, pb + ioFlFndrInfo, hfs ? pb + ioFlXFndrInfo : 0, false);
+	set_finfo(full_path, pb + ioFlFndrInfo, 0, false);
 
 	//!! times
 	return noErr;
@@ -1420,13 +1467,16 @@ read_next_de:
 
 	// Get stats
 	struct stat st;
-	if (stat(full_path, &st) < 0)
-		return errno2oserr();
-	if (dir_index == -1 && !S_ISDIR(st.st_mode))
+	if (stat(full_path, &st) < 0) {
+		if (errno == ENOENT || errno == ENOTDIR)
+			retire_fsitem(fs_item);
+		return (dir_index < 0) ? dirNFErr : errno2oserr();
+	}
+	if (dir_index < 0 && !S_ISDIR(st.st_mode))
 		return dirNFErr;
 
 	// Fill in struct from fs_item and stats
-	if (ReadMacInt32(pb + ioNamePtr))
+	if (dir_index != 0 && ReadMacInt32(pb + ioNamePtr))
 		cstr2pstr((char *)Mac2HostAddr(ReadMacInt32(pb + ioNamePtr)), fs_item->guest_name);
 	WriteMacInt16(pb + ioFRefNum, 0);
 	WriteMacInt8(pb + ioFlAttrib, (S_ISDIR(st.st_mode) ? faIsDir : 0) | (access(full_path, W_OK) == 0 ? 0 : faLocked));
@@ -1510,6 +1560,63 @@ static int16 fs_set_cat_info(uint32 pb)
 
 	//!! times
 	return noErr;
+}
+
+static int16 fs_make_fsspec(uint32 pb, uint32 dirID, uint32 vcb)
+{
+	uint32 spec = ReadMacInt32(pb + ioMisc);
+	if (spec == 0)
+		return paramErr;
+	Mac_memset(spec, 0, SIZEOF_FSSpec);
+
+	uint32 name_ptr = ReadMacInt32(pb + ioNamePtr);
+	uint8 plen = name_ptr ? ReadMacInt8(name_ptr) : 0;
+	bool dir_target = (plen == 0 || ReadMacInt8(name_ptr + plen) == ':');
+
+	FSItem *fs_item = NULL;
+	int16 result = get_item_and_path(pb, dirID, fs_item);
+	if (result != noErr)
+		return result;
+	if (fs_item == NULL || fs_item->id < ROOT_ID || (fs_item->parent_id == ROOT_PARENT_ID && fs_item->id != ROOT_ID)) {
+		retire_fsitem(fs_item);
+		return dirNFErr;
+	}
+
+	int16 vol_ref_num = vcb ? (int16)ReadMacInt16(vcb + vcbVRefNum) : 0;
+	struct stat st;
+	if (stat(full_path, &st) == 0) {
+		if (dir_target && !S_ISDIR(st.st_mode))
+			return dirNFErr;
+		WriteMacInt16(spec + fsSpecVRefNum, vol_ref_num);
+		WriteMacInt32(spec + fsSpecParID, fs_item->parent_id);
+		cstr2pstr((char *)Mac2HostAddr(spec + fsSpecName), fs_item->guest_name);
+		return noErr;
+	}
+	if (errno != ENOENT && errno != ENOTDIR)
+		return errno2oserr();
+
+	FSItem *parent_item = fs_item->parent;
+	char leaf[32];
+	strcpy(leaf, fs_item->guest_name);
+	retire_fsitem(fs_item);
+	for (bool check_leaf_parent = !dir_target; parent_item != NULL && parent_item->id >= ROOT_ID; check_leaf_parent = false) {
+		get_path_for_fsitem(parent_item);
+		if (stat(full_path, &st) == 0) {
+			if (check_leaf_parent && S_ISDIR(st.st_mode)) {
+				WriteMacInt16(spec + fsSpecVRefNum, vol_ref_num);
+				WriteMacInt32(spec + fsSpecParID, parent_item->id);
+				cstr2pstr((char *)Mac2HostAddr(spec + fsSpecName), leaf);
+				return fnfErr;
+			}
+			break;
+		}
+		if (parent_item->id <= ROOT_ID || (errno != ENOENT && errno != ENOTDIR))
+			break;
+		FSItem *anc = parent_item->parent;
+		retire_fsitem(parent_item);
+		parent_item = anc;
+	}
+	return dirNFErr;
 }
 
 // Open file
@@ -2001,8 +2108,8 @@ static int16 fs_delete(uint32 pb, uint32 dirID)
 	// Delete file
 	if (!extfs_remove(full_path))
 		return errno2oserr();
-	else
-		return noErr;
+	retire_fsitem(fs_item);
+	return noErr;
 }
 
 // Rename file/directory
@@ -2167,6 +2274,12 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 		case kFSMOpen:
 			return fs_open(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);
 
+		case kFSMOpenDF: {
+			// Mac OS 9's FSM strips kHFSMask from selectCode on kFSMOpenDF, so also check ioTrap
+			bool open_hfs = ((selectCode | ReadMacInt16(paramBlock + ioTrap)) & kHFSMask) != 0;
+			return fs_open(paramBlock, open_hfs ? ReadMacInt32(paramBlock + ioDirID) : 0, vcb, false);
+		}
+
 		case kFSMClose:
 			return fs_close(paramBlock);
 
@@ -2177,7 +2290,7 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_write(paramBlock);
 
 		case kFSMGetVolInfo:
-			return fs_get_vol_info(paramBlock, hfs);
+			return fs_get_vol_info(paramBlock, hfs, vcb);
 
 		case kFSMCreate:
 			return fs_create(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
@@ -2192,10 +2305,10 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_rename(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
 
 		case kFSMGetFileInfo:
-			return fs_get_file_info(paramBlock, hfs, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
+			return fs_get_file_info(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
 
 		case kFSMSetFileInfo:
-			return fs_set_file_info(paramBlock, hfs, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
+			return fs_set_file_info(paramBlock, hfs ? ReadMacInt32(paramBlock + ioDirID) : 0);
 
 		case kFSMUnmountVol:
 			return fs_unmount_vol(vcb);
@@ -2215,7 +2328,7 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 			return fs_set_eof(paramBlock);
 
 		case kFSMGetVol:
-			return fs_get_vol(paramBlock);
+			return fs_get_vol(paramBlock, hfs);
 
 		case kFSMSetVol:
 			return fs_set_vol(paramBlock, hfs, vcb);
@@ -2266,6 +2379,10 @@ int16 ExtFSHFS(uint32 vcb, uint16 selectCode, uint32 paramBlock, uint32 globalsP
 
 		case kFSMSetVolInfo:
 			return fs_set_vol_info(paramBlock);
+
+		case kFSMMakeFSSpec:
+			// _HFSDispatch 0x001B (PBMakeFSSpecSync) always passes HParmBlkPtr without kHFSMask
+			return fs_make_fsspec(paramBlock, ReadMacInt32(paramBlock + ioDirID), vcb);
 
 		case kFSMGetVolParms:
 			return fs_get_vol_parms(paramBlock);
