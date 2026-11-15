@@ -316,6 +316,13 @@ enum {
 	kIsAlias					= 0x8000
 };
 
+enum {	// FSSpec struct
+	fsSpecVRefNum = 0,
+	fsSpecParID = 2,
+	fsSpecName = 6,
+	SIZEOF_FSSpec = 70
+};
+
 enum {	// FInfo struct
 	fdType = 0,
 	fdCreator = 4,
