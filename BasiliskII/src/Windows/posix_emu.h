@@ -102,6 +102,9 @@ extern int my_errno;
 #ifndef S_ISDIR
 #define S_ISDIR(stat_mode) (((stat_mode) & _S_IFDIR) != 0)
 #endif
+#ifndef S_ISREG
+#define S_ISREG(stat_mode) (((stat_mode) & _S_IFREG) != 0)
+#endif
 
 // can't #define "stat" unless there's a replacement for "struct stat"
 struct my_stat {
