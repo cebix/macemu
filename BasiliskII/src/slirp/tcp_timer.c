@@ -114,8 +114,7 @@ tpgone:
  * Cancel all timers for TCP tp.
  */
 void
-tcp_canceltimers(tp)
-	struct tcpcb *tp;
+tcp_canceltimers(struct tcpcb *tp)
 {
 	register int i;
 
@@ -130,9 +129,7 @@ int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
  * TCP timer processing.
  */
 struct tcpcb *
-tcp_timers(tp, timer)
-	register struct tcpcb *tp;
-	int timer;
+tcp_timers(register struct tcpcb *tp, int timer)
 {
 	register int rexmt;
 	

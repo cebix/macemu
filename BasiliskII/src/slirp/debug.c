@@ -23,9 +23,7 @@ extern int slirp_tty_restore;
 
 
 void
-debug_init(file, dbg)
-	char *file;
-	int dbg;
+debug_init(char *file, int dbg)
 {
 	/* Close the old debugging file */
 	if (dfd)
@@ -50,9 +48,7 @@ debug_init(file, dbg)
  */
 #ifdef DEBUG
 void
-dump_packet(dat, n)
-	void *dat;
-	int n;
+dump_packet(void *dat, int n)
 {
 	u_char *pptr = (u_char *)dat;
 	int j,k;
@@ -79,8 +75,7 @@ dump_packet(dat, n)
  */
 
 void
-ttystats(ttyp)
-	struct ttys *ttyp;
+ttystats(struct ttys *ttyp)
 {
 	struct slirp_ifstats *is = &ttyp->ifstats;
 	char buff[512];
@@ -337,8 +332,7 @@ sockstats()
 
 #if 0
 void
-slirp_exit(exit_status)
-	int exit_status;
+slirp_exit(int exit_status)
 {
 	struct ttys *ttyp;
 	
