@@ -49,9 +49,7 @@ u_int16_t ip_id;
  * The mbuf opt, if present, will not be freed.
  */
 int
-ip_output(so, m0)
-	struct socket *so;
-	struct mbuf *m0;
+ip_output(struct socket *so, struct mbuf *m0)
 {
 	register struct ip *ip;
 	register struct mbuf *m = m0;

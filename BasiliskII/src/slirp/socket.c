@@ -28,12 +28,7 @@ so_init()
 
 
 struct socket *
-solookup(head, laddr, lport, faddr, fport)
-	struct socket *head;
-	struct in_addr laddr;
-	u_int lport;
-	struct in_addr faddr;
-	u_int fport;
+solookup(struct socket *head, struct in_addr laddr, u_int lport, struct in_addr faddr, u_int fport)
 {
 	struct socket *so;
 	
@@ -74,8 +69,7 @@ socreate()
  * remque and free a socket, clobber cache
  */
 void
-sofree(so)
-	struct socket *so;
+sofree(struct socket *so)
 {
   if (so->so_emu==EMU_RSH && so->extra) {
 	sofree(so->extra);
@@ -100,8 +94,7 @@ sofree(so)
  * a read() of 0 (or less) means it's disconnected
  */
 int
-soread(so)
-	struct socket *so;
+soread(struct socket *so)
 {
 	int n, nn;
 	u_int lss, total;
@@ -213,8 +206,7 @@ soread(so)
  * in the send buffer is sent as urgent data
  */
 void
-sorecvoob(so)
-	struct socket *so;
+sorecvoob(struct socket *so)
 {
 	struct tcpcb *tp = sototcpcb(so);
 
@@ -241,8 +233,7 @@ sorecvoob(so)
  * There's a lot duplicated code here, but...
  */
 int
-sosendoob(so)
-	struct socket *so;
+sosendoob(struct socket *so)
 {
 	struct sbuf *sb = &so->so_rcv;
 	char buff[2048]; /* XXX Shouldn't be sending more oob data than this */
@@ -300,8 +291,7 @@ sosendoob(so)
  * updating all sbuf field as necessary
  */
 int
-sowrite(so)
-	struct socket *so;
+sowrite(struct socket *so)
 {
 	int  n,nn;
 	struct sbuf *sb = &so->so_rcv;
@@ -396,8 +386,7 @@ sowrite(so)
  * recvfrom() a UDP socket
  */
 void
-sorecvfrom(so)
-	struct socket *so;
+sorecvfrom(struct socket *so)
 {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
@@ -499,9 +488,7 @@ sorecvfrom(so)
  * sendto() a socket
  */
 int
-sosendto(so, m)
-	struct socket *so;
-	struct mbuf *m;
+sosendto(struct socket *so, struct mbuf *m)
 {
 	int ret;
 	struct sockaddr_in addr;
@@ -550,11 +537,7 @@ sosendto(so, m)
  * XXX This should really be tcp_listen
  */
 struct socket *
-solisten(port, laddr, lport, flags)
-	u_int port;
-	u_int32_t laddr;
-	u_int lport;
-	int flags;
+solisten(u_int port, u_int32_t laddr, u_int lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
@@ -626,8 +609,7 @@ solisten(port, laddr, lport, flags)
  * XXX not yet...
  */
 void
-sorwakeup(so)
-	struct socket *so;
+sorwakeup(struct socket *so)
 {
 /*	sowrite(so); */
 /*	FD_CLR(so->s,&writefds); */
@@ -639,8 +621,7 @@ sorwakeup(so)
  * For now, don't read, it'll be done in the main loop
  */
 void
-sowwakeup(so)
-	struct socket *so;
+sowwakeup(struct socket *so)
 {
 	/* Nothing, yet */
 }
@@ -652,8 +633,7 @@ sowwakeup(so)
  * times each when only 1 was needed
  */
 void
-soisfconnecting(so)
-	register struct socket *so;
+soisfconnecting(register struct socket *so)
 {
 	so->so_state &= ~(SS_NOFDREF|SS_ISFCONNECTED|SS_FCANTRCVMORE|
 			  SS_FCANTSENDMORE|SS_FWDRAIN);
@@ -661,16 +641,14 @@ soisfconnecting(so)
 }
 
 void
-soisfconnected(so)
-        register struct socket *so;
+soisfconnected(register struct socket *so)
 {
 	so->so_state &= ~(SS_ISFCONNECTING|SS_FWDRAIN|SS_NOFDREF);
 	so->so_state |= SS_ISFCONNECTED; /* Clobber other states */
 }
 
 void
-sofcantrcvmore(so)
-	struct  socket *so;
+sofcantrcvmore(struct  socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
 		shutdown(so->s,0);
@@ -686,8 +664,7 @@ sofcantrcvmore(so)
 }
 
 void
-sofcantsendmore(so)
-	struct socket *so;
+sofcantsendmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
             shutdown(so->s,1);           /* send FIN to fhost */
@@ -706,8 +683,7 @@ sofcantsendmore(so)
 }
 
 void
-soisfdisconnected(so)
-	struct socket *so;
+soisfdisconnected(struct socket *so)
 {
 /*	so->so_state &= ~(SS_ISFCONNECTING|SS_ISFCONNECTED); */
 /*	close(so->s); */
@@ -722,8 +698,7 @@ soisfdisconnected(so)
  * Set CANTSENDMORE once all data has been write()n
  */
 void
-sofwdrain(so)
-	struct socket *so;
+sofwdrain(struct socket *so)
 {
 	if (so->so_rcv.sb_cc)
 		so->so_state |= SS_FWDRAIN;

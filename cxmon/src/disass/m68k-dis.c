@@ -125,9 +125,7 @@ struct private
    ? 1 : fetch_data ((info), (addr)))
 
 static int
-fetch_data (info, addr)
-     struct disassemble_info *info;
-     bfd_byte *addr;
+fetch_data (struct disassemble_info *info, bfd_byte *addr)
 {
   int status;
   struct private *priv = (struct private *)info->private_data;
@@ -157,9 +155,7 @@ dummy_printer (file) FILE *file;
  { return 0; }
 
 static void
-dummy_print_address (vma, info)
-     bfd_vma vma;
-     struct disassemble_info *info;
+dummy_print_address (bfd_vma vma, struct disassemble_info *info)
 {
 }
 
@@ -167,9 +163,7 @@ dummy_print_address (vma, info)
    on INFO->STREAM.  Returns length of the instruction, in bytes.  */
 
 int
-print_insn_m68k (memaddr, info)
-     bfd_vma memaddr;
-     disassemble_info *info;
+print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 {
   register int i;
   register unsigned char *p;
@@ -450,12 +444,7 @@ invalid: {
    an opcode tabe error was found. */
 
 static int
-print_insn_arg (d, buffer, p0, addr, info)
-     const char *d;
-     unsigned char *buffer;
-     unsigned char *p0;
-     bfd_vma addr;		/* PC for this arg to be relative to */
-     disassemble_info *info;
+print_insn_arg (const char *d, unsigned char *buffer, unsigned char *p0, bfd_vma addr, disassemble_info *info)
 {
   register int val = 0;
   register int place = d[1];
@@ -997,11 +986,7 @@ imm_printed:
    BUFFER contains the instruction.  */
 
 static int
-fetch_arg (buffer, code, bits, info)
-     unsigned char *buffer;
-     int code;
-     int bits;
-     disassemble_info *info;
+fetch_arg (unsigned char *buffer, int code, int bits, disassemble_info *info)
 {
   register int val = 0;
   switch (code)
@@ -1119,11 +1104,7 @@ fetch_arg (buffer, code, bits, info)
    ADDR is the nominal core address of that extension word.  */
 
 static unsigned char *
-print_indexed (basereg, p, addr, info)
-     int basereg;
-     unsigned char *p;
-     bfd_vma addr;
-     disassemble_info *info;
+print_indexed (int basereg, unsigned char *p, bfd_vma addr, disassemble_info *info)
 {
   register int word;
   static char *const scales[] = {"", "*2", "*4", "*8"};
@@ -1226,10 +1207,7 @@ print_indexed (basereg, p, addr, info)
    REGNO = -1 for pc, -2 for none (suppressed).  */
 
 static void
-print_base (regno, disp, info)
-     int regno;
-     bfd_vma disp;
-     disassemble_info *info;
+print_base (int regno, bfd_vma disp, disassemble_info *info)
 {
 	if (regno == -1) {
 		(*info->print_address_func) (disp, info);

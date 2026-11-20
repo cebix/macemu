@@ -64,8 +64,7 @@ ip_init()
  * try to reassemble.  Process options.  Pass to next level.
  */
 void
-ip_input(m)
-	struct mbuf *m;
+ip_input(struct mbuf *m)
 {
 	register struct ip *ip;
 	u_int hlen;
@@ -232,9 +231,7 @@ bad:
  * is given as fp; otherwise have to make a chain.
  */
 struct ip *
-ip_reass(ip, fp)
-	register struct ipasfrag *ip;
-	register struct ipq *fp;
+ip_reass(register struct ipasfrag *ip, register struct ipq *fp)
 {
 	register struct mbuf *m = dtom(ip);
 	register struct ipasfrag *q;
@@ -391,8 +388,7 @@ dropfrag:
  * associated datagrams.
  */
 void
-ip_freef(fp)
-	struct ipq *fp;
+ip_freef(struct ipq *fp)
 {
 	register struct ipasfrag *q, *p;
 
@@ -411,8 +407,7 @@ ip_freef(fp)
  * Like insque, but pointers in middle of structure.
  */
 void
-ip_enq(p, prev)
-	register struct ipasfrag *p, *prev;
+ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
 {
 	DEBUG_CALL("ip_enq");
 	DEBUG_ARG("prev = %lx", (long)prev);
@@ -426,8 +421,7 @@ ip_enq(p, prev)
  * To ip_enq as remque is to insque.
  */
 void
-ip_deq(p)
-	register struct ipasfrag *p;
+ip_deq(register struct ipasfrag *p)
 {
 	((struct ipasfrag *)(p->ipf_prev))->ipf_next = p->ipf_next;
 	((struct ipasfrag *)(p->ipf_next))->ipf_prev = p->ipf_prev;
@@ -470,8 +464,7 @@ ip_slowtimo()
 #ifdef notdef
 
 int
-ip_dooptions(m)
-	struct mbuf *m;
+ip_dooptions(struct mbuf *m)
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register u_char *cp;
@@ -674,9 +667,7 @@ bad:
  * (XXX) should be deleted; last arg currently ignored.
  */
 void
-ip_stripoptions(m, mopt)
-	register struct mbuf *m;
-	struct mbuf *mopt;
+ip_stripoptions(register struct mbuf *m, struct mbuf *mopt)
 {
 	register int i;
 	struct ip *ip = mtod(m, struct ip *);

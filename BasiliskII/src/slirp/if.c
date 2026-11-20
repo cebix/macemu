@@ -21,8 +21,7 @@ struct	mbuf *next_m;			/* Pointer to next mbuf to output */
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
 void
-ifs_insque(ifm, ifmhead)
-	struct mbuf *ifm, *ifmhead;
+ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
 {
 	ifm->ifs_next = ifmhead->ifs_next;
 	ifmhead->ifs_next = ifm;
@@ -31,8 +30,7 @@ ifs_insque(ifm, ifmhead)
 }
 
 void
-ifs_remque(ifm)
-	struct mbuf *ifm;
+ifs_remque(struct mbuf *ifm)
 {
 	ifm->ifs_prev->ifs_next = ifm->ifs_next;
 	ifm->ifs_next->ifs_prev = ifm->ifs_prev;
@@ -70,10 +68,7 @@ if_init()
  * we don't expect any signals, but what the hell..
  */
 inline int
-writen(fd, bptr, n)
-	int fd;
-	char *bptr;
-	int n;
+writen(int fd, char *bptr, int n)
 {
 	int ret;
 	int total;
@@ -102,8 +97,7 @@ writen(fd, bptr, n)
  */
 #define INBUFF_SIZE 2048 /* XXX */
 void
-if_input(ttyp)
-	struct ttys *ttyp;
+if_input(struct ttys *ttyp)
 {
 	u_char if_inbuff[INBUFF_SIZE];
 	int if_n;
@@ -158,9 +152,7 @@ if_input(ttyp)
  * it'll temporarily get downgraded to the batchq)
  */
 void
-if_output(so, ifm)
-	struct socket *so;
-	struct mbuf *ifm;
+if_output(struct socket *so, struct mbuf *ifm)
 {
 	struct mbuf *ifq;
 	int on_fastq = 1;
