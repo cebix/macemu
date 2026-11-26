@@ -648,7 +648,7 @@ soisfconnected(register struct socket *so)
 }
 
 void
-sofcantrcvmore(struct  socket *so)
+sofcantrcvmore(struct socket *so)
 {
 	if ((so->so_state & SS_NOFDREF) == 0) {
 		shutdown(so->s,0);
