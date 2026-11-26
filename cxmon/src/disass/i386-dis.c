@@ -2541,13 +2541,13 @@ dofloat (int sizeflag)
 }
 
 static void
-OP_ST (int bytemode, int sizeflag)
+OP_ST (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   oappend ("%st");
 }
 
 static void
-OP_STi (int bytemode, int sizeflag)
+OP_STi (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   sprintf (scratchbuf, "%%st(%d)", rm);
   oappend (scratchbuf + intel_syntax);
@@ -3636,13 +3636,13 @@ OP_J (int bytemode, int sizeflag)
 }
 
 static void
-OP_SEG (int dummy, int sizeflag)
+OP_SEG (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   oappend (names_seg[reg]);
 }
 
 static void
-OP_DIR (int dummy, int sizeflag)
+OP_DIR (int dummy ATTRIBUTE_UNUSED, int sizeflag)
 {
   int seg, offset;
 
@@ -3665,7 +3665,7 @@ OP_DIR (int dummy, int sizeflag)
 }
 
 static void
-OP_OFF (int bytemode, int sizeflag)
+OP_OFF (int bytemode ATTRIBUTE_UNUSED, int sizeflag)
 {
   bfd_vma off;
 
@@ -3690,7 +3690,7 @@ OP_OFF (int bytemode, int sizeflag)
 }
 
 static void
-OP_OFF64 (int bytemode, int sizeflag)
+OP_OFF64 (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   bfd_vma off;
 
@@ -3768,7 +3768,7 @@ OP_DSreg (int code, int sizeflag)
 }
 
 static void
-OP_C (int dummy, int sizeflag)
+OP_C (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   int add = 0;
   USED_REX (REX_EXTX);
@@ -3779,7 +3779,7 @@ OP_C (int dummy, int sizeflag)
 }
 
 static void
-OP_D (int dummy, int sizeflag)
+OP_D (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   int add = 0;
   USED_REX (REX_EXTX);
@@ -3793,7 +3793,7 @@ OP_D (int dummy, int sizeflag)
 }
 
 static void
-OP_T (int dummy, int sizeflag)
+OP_T (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   sprintf (scratchbuf, "%%tr%d", reg);
   oappend (scratchbuf + intel_syntax);
@@ -3809,7 +3809,7 @@ OP_Rd (int bytemode, int sizeflag)
 }
 
 static void
-OP_MMX (int bytemode, int sizeflag)
+OP_MMX (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   int add = 0;
   USED_REX (REX_EXTX);
@@ -3824,7 +3824,7 @@ OP_MMX (int bytemode, int sizeflag)
 }
 
 static void
-OP_XMM (int bytemode, int sizeflag)
+OP_XMM (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   int add = 0;
   USED_REX (REX_EXTX);
@@ -3964,7 +3964,7 @@ static const char *Suffix3DNow[] = {
 };
 
 static void
-OP_3DNowSuffix (int bytemode, int sizeflag)
+OP_3DNowSuffix (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   const char *mnemonic;
 
@@ -4000,7 +4000,7 @@ static const char *simd_cmp_op[] = {
 };
 
 static void
-OP_SIMD_Suffix (int bytemode, int sizeflag)
+OP_SIMD_Suffix (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   unsigned int cmp_type;
 
@@ -4040,7 +4040,7 @@ OP_SIMD_Suffix (int bytemode, int sizeflag)
 }
 
 static void
-SIMD_Fixup (int extrachar, int sizeflag)
+SIMD_Fixup (int extrachar, int sizeflag ATTRIBUTE_UNUSED)
 {
   /* Change movlps/movhps to movhlps/movlhps for 2 register operand
      forms of these instructions.  */
