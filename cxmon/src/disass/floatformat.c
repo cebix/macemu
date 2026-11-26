@@ -103,12 +103,7 @@ static unsigned long get_field PARAMS ((unsigned char *,
 /* Extract a field which starts at START and is LEN bytes long.  DATA and
    TOTAL_LEN are the thing we are extracting it from, in byteorder ORDER.  */
 static unsigned long
-get_field (data, order, total_len, start, len)
-     unsigned char *data;
-     enum floatformat_byteorders order;
-     unsigned int total_len;
-     unsigned int start;
-     unsigned int len;
+get_field (unsigned char *data, enum floatformat_byteorders order, unsigned int total_len, unsigned int start, unsigned int len)
 {
   unsigned long result;
   unsigned int cur_byte;
@@ -156,10 +151,7 @@ get_field (data, order, total_len, start, len)
    Store the double in *TO.  */
 
 void
-floatformat_to_double (fmt, from, to)
-     const struct floatformat *fmt;
-     char *from;
-     double *to;
+floatformat_to_double (const struct floatformat *fmt, char *from, double *to)
 {
   unsigned char *ufrom = (unsigned char *)from;
   double dto;
@@ -225,13 +217,7 @@ static void put_field PARAMS ((unsigned char *, enum floatformat_byteorders,
 /* Set a field which starts at START and is LEN bytes long.  DATA and
    TOTAL_LEN are the thing we are extracting it from, in byteorder ORDER.  */
 static void
-put_field (data, order, total_len, start, len, stuff_to_put)
-     unsigned char *data;
-     enum floatformat_byteorders order;
-     unsigned int total_len;
-     unsigned int start;
-     unsigned int len;
-     unsigned long stuff_to_put;
+put_field (unsigned char *data, enum floatformat_byteorders order, unsigned int total_len, unsigned int start, unsigned int len, unsigned long stuff_to_put)
 {
   unsigned int cur_byte;
   int cur_bitshift;
@@ -278,10 +264,7 @@ put_field (data, order, total_len, start, len, stuff_to_put)
    restrictions.  */
 
 void
-floatformat_from_double (fmt, from, to)
-     CONST struct floatformat *fmt;
-     double *from;
-     char *to;
+floatformat_from_double (CONST struct floatformat *fmt, double *from, char *to)
 {
   double dfrom;
   int exponent;
@@ -359,8 +342,7 @@ floatformat_from_double (fmt, from, to)
 /* This is to be run on a host which uses IEEE floating point.  */
 
 void
-ieee_test (n)
-     double n;
+ieee_test (double n)
 {
   double result;
   char exten[16];
